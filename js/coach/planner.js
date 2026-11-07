@@ -46,7 +46,22 @@ function fahrenheit(c) { return c * 9 / 5 + 32; }
  * Generate a 14-day plan.
  * @param opts {settings, state:{ctl, atl, tsb, longestRecentMin, weeklyLoadAvg, readinessBand, ftp}, forecast: {date:{tMin7amF, precipPct}}, startDate}
  */
-export function generatePlan({ settings, state, forecast = {}, startDate = todayIso() }) {
+/** Apply a coach's dated adjustment ("Rest", "Easy 60 min", "FTP test") to a day's sessions. Returns true when it changed the day. */
+function applyAdjustment(d, a, ftp, location) {
+  const c = a.change || '';
+  const keepGym = d.sessions.filter(x => x.kind === 'gym' || x.kind === 'mobility');
+  const tag = `Coach: ${c}`;
+  if (/ftp test|20-min(ute)? test|retest/i.test(c)) { const w = buildWorkout('ftp20', 70); d.sessions = [bikeSession(w, ftp, location, { title: 'FTP test — 20 minute', description: `${w.why} ${a.reason || ''}`.trim(), note: tag, intensity: true }), ...keepGym]; return true; }
+  if (/\brest\b|day off|skip/i.test(c) && !/easy|spin/i.test(c)) { d.sessions = [{ kind: 'rest', title: 'Rest (coach)', durationMin: 0, description: `${c}. ${a.reason || ''}`.trim() }, ...keepGym]; return true; }
+  if (/easy|recovery|spin/i.test(c)) {
+    const m = c.match(/(\d{2,3})\s*(?:–|-|to)?\s*(\d{2,3})?\s*min/i); const mins = m ? +(m[2] || m[1]) : 60;
+    const w = buildWorkout(/spin-?ups?|cadence/i.test(c) ? 'z2cad' : 'rec30', Math.min(90, Math.max(30, mins)));
+    d.sessions = [bikeSession(w, ftp, location, { title: 'Easy day (coach)', description: `${c}. ${a.reason || ''}`.trim(), note: tag }), ...keepGym]; return true;
+  }
+  return false;
+}
+
+export function generatePlan({ settings, state, forecast = {}, startDate = todayIso(), coachAdjustments = [] }) {
   const sch = settings.schedule, ev = settings.goals.event;
   const daysToEvent = ev?.date ? daysBetween(startDate, ev.date) : null;
   const weeksToEvent = daysToEvent != null ? Math.ceil(daysToEvent / 7) : null;
@@ -56,6 +71,7 @@ export function generatePlan({ settings, state, forecast = {}, startDate = today
   const ftp = state.ftp || 150;
   const indoorFrom = sch.indoorAvailableFrom || null;
   const days = [];
+  const notes = [];
   let intensityCount = 0;
   for (let i = 0; i < 14; i++) {
     const date = addDays(startDate, i);
@@ -123,12 +139,13 @@ export function generatePlan({ settings, state, forecast = {}, startDate = today
     if (restDay && !d.sessions.length) d.sessions.push({ kind: 'rest', title: 'Rest', durationMin: 0, description: 'Full rest. Sleep, food, a short walk. This is where fitness is built.' });
     if (!d.sessions.length) d.sessions.push({ kind: 'rest', title: 'Rest day', durationMin: 0, description: 'Nothing scheduled. Optional 20–30 min walk or easy spin.' });
     if (gymDay || restDay) d.sessions.push({ kind: 'mobility', title: MOBILITY.title, durationMin: 12, items: MOBILITY.items });
+    const adj = coachAdjustments.find(a => a.date === d.date);
+    if (adj && applyAdjustment(d, adj, ftp, location)) notes.push(`${d.dayName} ${d.date.slice(5)}: ${adj.change} (coach).`);
     days.push(d);
   }
   // Weekly load guard: if planned load > 1.3 × recent weekly average (and that average is meaningful), shave the long ride
   const weekly = [0, 1].map(w => days.slice(w * 7, w * 7 + 7).reduce((a, d) => a + d.sessions.reduce((b, s) => b + (s.plannedTss || 0), 0), 0));
   const avg = state.weeklyLoadAvg || 0;
-  const notes = [];
   if (avg > 100) {
     weekly.forEach((wl, w) => {
       if (wl > avg * 1.35) {
@@ -160,7 +177,7 @@ function planSummary(phase, weeksToEvent, days, settings) {
   const hrs = bike.reduce((a, s) => a + s.durationMin, 0) / 60;
   const gym = days.flatMap(d => d.sessions.filter(s => s.kind === 'gym')).length;
   const ev = settings.goals.event;
-  return `${phase.label}. ${weeksToEvent != null ? `${weeksToEvent} weeks to ${ev.name}. ` : ''}${bike.length} rides (${hrs.toFixed(1)} h), ${gym} gym sessions over 14 days. ${days.some(d => d.recovery) ? 'Includes a recovery week — honor it.' : 'Loading weeks: build steadily, sleep well.'}`;
+  return `${weeksToEvent != null ? `${weeksToEvent} weeks to ${ev.name}. ` : ''}${bike.length} rides (${hrs.toFixed(1)} h), ${gym} gym sessions over 14 days. ${days.some(d => d.recovery) ? 'Includes a recovery week — honor it.' : 'Loading weeks: build steadily, sleep well.'}`;
 }
 
 /** Match completed rides to planned bike sessions by date (first unmatched bike session that day). */

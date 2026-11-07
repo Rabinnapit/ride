@@ -4,6 +4,8 @@ import * as dom from '../ui/dom.js';
 import { h, icon, tile, section, empty, button, pill, zoneBars } from '../ui/dom.js';
 import { todaysCall, latestCoachNote, upcoming } from '../coach/today.js';
 import { sessionDetail } from './train.js';
+import { effortOf } from '../coach/story.js';
+import { workoutProfile } from '../ui/workout-art.js';
 import { withInfo } from '../ui/glossary.js';
 import { pmcChart } from '../ui/charts.js';
 import { getSettings, units, fmtDuration, fmtNum, todayIso, addDays, daysBetween, rideLocalDate, fmtDate, currentFtp, DAY_NAMES } from '../settings.js';
@@ -12,7 +14,7 @@ import { buildFocus } from '../coach/focus.js';
 import { rideCall, weatherIcon, componentStatus } from '../modules/extras.js';
 
 function tsbWord(tsb) {
-  if (tsb > 25) return { word: 'Detraining', cls: 'warn' }; if (tsb > 5) return { word: 'Fresh', cls: 'good' }; if (tsb > -10) return { word: 'Neutral', cls: '' }; if (tsb > -30) return { word: 'Training hard', cls: 'good' }; return { word: 'Overreaching', cls: 'bad' };
+  if (tsb > 25) return { word: 'very fresh: time to train', cls: 'warn' }; if (tsb > 5) return { word: 'fresh: good day to go hard', cls: 'good' }; if (tsb > -10) return { word: 'neutral', cls: '' }; if (tsb > -30) return { word: 'training hard: recover well', cls: 'good' }; return { word: 'tired: ease off', cls: 'bad' };
 }
 
 registerView('home', (root) => {
@@ -41,15 +43,15 @@ registerView('home', (root) => {
   const tc = todaysCall({ settings: s, state, today });
   const note = latestCoachNote(state.coachNotes);
   const kindIcon = { rest: 'moon', easy: 'heart', ride: 'rides', test: 'flag', gym: 'gym', free: 'info' }[tc.kind] || 'info';
-  const todayPanel = h('section', { class: `today ${tc.kind} ${tc.done ? 'done' : ''}` },
+  const todayPanel = h('section', { class: `today-call ${tc.kind} ${tc.done ? 'done' : ''}` },
     h('div', { class: 'today-date' }, h('span', null, `${DAY_NAMES[new Date().getDay()]} ${fmtDate(today)}`), call ? h('span', { class: `call ${call.ok ? 'ok' : 'no'}` }, weatherIcon(fc.code7), ' ', call.label, h('small', null, ` ${call.detail}`)) : h('button', { class: 'btn small ghost', onClick: () => loadForecast(true).then(() => navigate('home')) }, 'Load weather')),
     h('div', { class: 'today-main' },
       h('div', { class: 'today-kind' }, icon(kindIcon)),
-      h('div', null, h('div', { class: 'today-eyebrow' }, tc.done ? 'Done today' : 'Today'), h('h1', null, tc.title), h('p', { class: 'today-line' }, tc.line)),
+      h('div', null, h('div', { class: 'today-eyebrow' }, tc.done ? 'Done today' : 'Today'), h('h1', null, tc.title), h('p', { class: 'today-line' }, tc.line), tc.kind !== 'rest' && tc.session?.kind === 'bike' && tc.session.segments ? h('div', { class: 'today-art' }, workoutProfile(tc.session.segments, { compact: true })) : null),
     ),
     tc.why.length ? h('p', { class: 'today-why' }, tc.why.join(' · ')) : null,
     h('div', { class: 'today-actions' },
-      tc.session ? button(tc.session.kind === 'gym' ? 'Open gym session' : 'Open session', () => sessionDetail(tc.session, state.plan.days.find(d => d.date === today), s, state.plan), { primary: true, small: true }) : state.plan ? button('See the plan', () => navigate('train'), { small: true }) : button('Build my plan', () => navigate('train'), { primary: true, small: true }),
+      tc.session ? button(tc.kind === 'rest' && tc.session.kind !== 'rest' ? 'See the skipped session' : tc.session.kind === 'gym' ? 'Open gym session' : 'Open session', () => sessionDetail(tc.session, state.plan.days.find(d => d.date === today), s, state.plan), { primary: tc.kind !== 'rest', small: true }) : state.plan ? button('See the plan', () => navigate('train'), { small: true }) : button('Build my plan', () => navigate('train'), { primary: true, small: true }),
       tc.kind === 'rest' ? button('Log wellness', () => navigate('wellness'), { small: true }) : null,
       tc.pack ? button('What to pack', () => packDialog(tc.pack), { small: true, iconName: 'food' }) : null,
       tc.source ? h('span', { class: 'today-source' }, tc.source) : null,
@@ -81,7 +83,8 @@ registerView('home', (root) => {
     h('div', { class: 'rail-list' },
       rail(`W/kg for ${ga.label}`, wkg || 0, ga.ftpWkg, v => v.toFixed(2), 'wkg'),
       rail(`Best 1 h+ ride speed vs ${ga.avgKmh} km/h`, bestSpeed, ga.avgKmh, v => `${v.toFixed(1)} km/h`),
-      rail('Fitness (CTL) vs 60', pm?.ctl || 0, 60, v => v.toFixed(0), 'ctl'),
+      rail('Fitness (CTL) vs 60 (a solid club rider)', pm?.ctl || 0, 60, v => v.toFixed(0), 'ctl'),
+      (() => { const a28 = aggregate(ridesInRange(rides, addDays(today, -27), today)); if (!a28.tiz3) return null; const tot = a28.tiz3.reduce((x, y) => x + y, 0) || 1; return rail('Easy riding share vs 70% (last 4 weeks)', a28.tiz3[0] / tot * 100, 70, v => `${v.toFixed(0)}%`, 'threezone'); })(),
     ),
   ), { sub: 'Numbers from your last 90 days. The rails show how far you are from riding with the fast group.', actions: button('Edit targets', () => navigate('settings'), { small: true }) });
 
@@ -110,14 +113,14 @@ registerView('home', (root) => {
   const weekRides = ridesInRange(rides, weekStart, today);
   const aw = aggregate(weekRides);
   const lastWeek = aggregate(ridesInRange(rides, addDays(weekStart, -7), addDays(weekStart, -1)));
-  const plannedWeek = state.plan ? state.plan.days.filter(d => d.date >= weekStart && d.date <= addDays(weekStart, 6)).flatMap(d => d.sessions).filter(x => x.kind === 'bike').reduce((a, x) => a + (x.done ? (x.actualTss || x.plannedTss) : x.plannedTss), 0) : 0;
+  const plannedWeek = state.plan && state.plan.startDate <= weekStart ? state.plan.days.filter(d => d.date >= weekStart && d.date <= addDays(weekStart, 6)).flatMap(d => d.sessions).filter(x => x.kind === 'bike').reduce((a, x) => a + (x.done ? (x.actualTss || x.plannedTss) : x.plannedTss), 0) : 0;
   const up = upcoming(state, today, 4);
   const weekPanel = section('This week', h('div', null,
     h('div', { class: 'tiles compact' },
       tile(fmtDuration(aw.timerSec, { short: true }), 'Ride time', `last week ${fmtDuration(lastWeek.timerSec, { short: true })}`),
       tile(units.distStr(aw.distanceM, 0), 'Distance', `last week ${units.distStr(lastWeek.distanceM, 0)}`),
       tile(fmtNum(aw.load), 'Load so far', plannedWeek ? `of ${fmtNum(plannedWeek)} planned` : `last week ${fmtNum(lastWeek.load)}`, '', 'load'),
-      tile(isFinite(lm.acwr) ? lm.acwr.toFixed(2) : '–', 'Acute : chronic', lm.acwr > 1.5 ? 'spike — ease off' : lm.acwr >= 0.8 && lm.acwr <= 1.3 ? 'sweet spot' : 'low', lm.acwr > 1.5 ? 'warn' : '', 'acwr'),
+      tile(isFinite(lm.acwr) ? (lm.acwr > 1.5 ? 'Spike' : lm.acwr > 1.3 ? 'Rising fast' : lm.acwr >= 0.8 ? 'Steady' : 'Light') : '–', 'Load jump', isFinite(lm.acwr) ? `this week is ${lm.acwr.toFixed(1)}× your usual` : '', lm.acwr > 1.5 ? 'warn' : '', 'acwr'),
     ),
     up.length ? h('div', { class: 'upcoming' }, up.map(u => h('button', { class: `up ${u.session.kind}`, onClick: () => sessionDetail(u.session, state.plan.days.find(d => d.date === u.date), s, state.plan) }, h('b', null, u.dayName), h('span', null, u.session.title), u.session.durationMin ? h('small', null, `${u.session.durationMin} min`) : null))) : null,
   ), { sub: `Week of ${fmtDate(weekStart)}`, actions: button('Full plan', () => navigate('train'), { small: true }) });
@@ -180,7 +183,7 @@ export function focusCard(c) {
 export function rideCard(r) {
   const wkg = r.paramsUsed?.weightKg;
   return h('a', { class: 'ride-card', href: `#/ride/${r.id}` },
-    h('div', { class: 'ride-card-head' }, h('div', null, h('strong', null, r.name), h('span', { class: 'muted' }, ` · ${fmtDate(rideLocalDate(r), { weekday: 'short', month: 'short', day: 'numeric' })}`)), r.indoor ? pill('indoor') : null, r.powerValid === false && r.hasPower ? pill('power excluded', 'warn') : null, r.excluded ? pill('excluded', 'warn') : null),
+    h('div', { class: 'ride-card-head' }, h('div', null, h('strong', null, r.name), h('span', { class: 'muted' }, ` · ${fmtDate(rideLocalDate(r), { weekday: 'short', month: 'short', day: 'numeric' })}`)), (() => { const e = effortOf(r); return e.cls ? pill(e.word, `effort ${e.cls}`) : null; })(), r.indoor ? pill('indoor') : null, r.powerValid === false && r.hasPower ? pill('power excluded', 'warn') : null, r.excluded ? pill('excluded', 'warn') : null),
     h('div', { class: 'ride-stats' },
       h('div', null, h('b', null, units.distStr(r.distanceM, 1)), h('small', null, 'distance')),
       h('div', null, h('b', null, fmtDuration(r.timerSec)), h('small', null, 'time')),

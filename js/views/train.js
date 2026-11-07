@@ -2,6 +2,7 @@
 import { state, registerView, navigate, savePlan, saveSettings, loadForecast, db } from '../app.js';
 import { h, icon, section, empty, button, segmented, table, modal, toast, pill, downloadFile, kv, confirmDialog } from '../ui/dom.js';
 import { focusCard } from './home.js';
+import { workoutProfile, feelScale, zoneLegend } from '../ui/workout-art.js';
 import { getSettings, units, fmtDuration, fmtNum, todayIso, addDays, rideLocalDate, fmtDate, currentFtp, DAY_NAMES, daysBetween } from '../settings.js';
 import { aggregate, ridesInRange, weeklyBuckets } from '../metrics/aggregate.js';
 import { buildFocus } from '../coach/focus.js';
@@ -40,7 +41,8 @@ function planState(s, rides, today) {
 async function regenerate(s, rides, today, startDate = today) {
   await loadForecast();
   if (!s.planAnchor) { await saveSettings({ planAnchor: startDate }); s = getSettings(); }
-  const plan = generatePlan({ settings: s, state: planState(s, rides, today), forecast: state.forecast || {}, startDate });
+  const coachAdjustments = (state.coachNotes || []).flatMap(n => n.parsed?.planAdjustments || []);
+  const plan = generatePlan({ settings: s, state: planState(s, rides, today), forecast: state.forecast || {}, startDate, coachAdjustments });
   matchRidesToPlan(plan, rides, rideLocalDate);
   await savePlan(plan);
   await db.put('planlog', { id: plan.generatedAt, startDate, phase: plan.phase.key, weeklyPlannedTss: plan.weeklyPlannedTss });
@@ -87,7 +89,7 @@ function sessionRow(x, d, s, plan) {
   const meta = x.kind === 'bike' ? `${CATEGORY[x.cat]?.label || ''}${dur} · ${x.location === 'indoor' ? 'indoor' : x.location === 'outdoor-if-warm' ? 'outdoor if ≥ cutoff' : 'outdoor'} · TSS ${x.plannedTss}` : x.kind === 'gym' ? `${dur}` : x.kind === 'mobility' ? `${dur}` : '';
   const row = h('button', { class: cls, onClick: () => sessionDetail(x, d, s, plan) },
     h('span', { class: 'session-dot', style: { background: x.kind === 'bike' ? (CATEGORY[x.cat]?.color || '#1A63C9') : x.kind === 'gym' ? '#7B3FBF' : x.kind === 'event' ? '#D33A2F' : 'var(--line)' } }),
-    h('span', { class: 'session-text' }, h('b', null, x.title), meta ? h('small', null, meta) : null),
+    h('span', { class: 'session-text' }, h('b', null, x.title), meta ? h('small', null, meta) : null, x.kind === 'bike' && x.segments ? workoutProfile(x.segments, { compact: true }) : null),
     x.done ? icon('check', 'ok') : null,
   );
   return row;
@@ -99,8 +101,8 @@ export function sessionDetail(x, d, s, plan) {
   body.appendChild(h('p', null, x.description || ''));
   if (x.note) body.appendChild(h('p', { class: 'muted small' }, x.note));
   if (x.kind === 'bike') {
-    body.appendChild(kv([['Duration', `${x.durationMin} min`], ['Planned load', `${x.plannedTss} TSS`], ['Where', x.location], ['Targets at FTP', `${ftp} W`]]));
-    body.appendChild(h('div', { class: 'segments' }, segmentBar(x.segments)));
+    body.appendChild(kv([['Duration', `${x.durationMin} min`], ['Planned load', `${x.plannedTss} TSS`], ['Where', x.location === 'indoor' ? 'Indoor (trainer / Zwift)' : x.location === 'outdoor-if-warm' ? 'Outdoors if it’s above your cold cutoff, otherwise indoors' : 'Outdoors'], ['Targets at FTP', `${ftp} W`]]));
+    body.appendChild(h('div', { class: 'wo-pic' }, workoutProfile(x.segments, { ftp }), zoneLegend(x.segments), feelScale(x.segments)));
     body.appendChild(h('ol', { class: 'steps' }, describeSegments(x.segments, ftp).map(l => h('li', null, l))));
     const w = { id: x.workoutId, name: x.title, cat: x.cat, segments: x.segments, why: x.description };
     body.appendChild(h('div', { class: 'row' }, button('Zwift .zwo', () => downloadFile(`${slug(x.title)}.zwo`, toZwo(w, { ftp }), 'application/xml'), { small: true, iconName: 'download' }), button('.mrc (ERG)', () => downloadFile(`${slug(x.title)}.mrc`, toMrc(w), 'text/plain'), { small: true, iconName: 'download' })));
@@ -151,7 +153,7 @@ function renderLibrary(root, s) {
 function libraryDetail(w, ftp) {
   let minutes = w.min[Math.min(1, w.min.length - 1)];
   const body = h('div', { class: 'stack' });
-  const draw = () => { const b = buildWorkout(w.id, minutes); body.innerHTML = ''; body.append(h('p', null, w.why), segmented(w.min.map(mm => ({ value: mm, label: `${mm} min` })), minutes, v => { minutes = +v; draw(); }), kv([['Planned load', `${Math.round(plannedTss(b.segments))} TSS`]]), segmentBar(b.segments), h('ol', { class: 'steps' }, describeSegments(b.segments, ftp).map(l => h('li', null, l))), h('div', { class: 'row' }, button('Zwift .zwo', () => downloadFile(`${slug(b.name)}-${minutes}.zwo`, toZwo(b, { ftp }), 'application/xml'), { small: true, iconName: 'download' }), button('.mrc', () => downloadFile(`${slug(b.name)}-${minutes}.mrc`, toMrc(b), 'text/plain'), { small: true, iconName: 'download' }))); };
+  const draw = () => { const b = buildWorkout(w.id, minutes); body.innerHTML = ''; body.append(h('p', null, w.why), segmented(w.min.map(mm => ({ value: mm, label: `${mm} min` })), minutes, v => { minutes = +v; draw(); }), kv([['Planned load', `${Math.round(plannedTss(b.segments))} TSS`]]), h('div', { class: 'wo-pic' }, workoutProfile(b.segments, { ftp }), zoneLegend(b.segments), feelScale(b.segments)), h('ol', { class: 'steps' }, describeSegments(b.segments, ftp).map(l => h('li', null, l))), h('div', { class: 'row' }, button('Zwift .zwo', () => downloadFile(`${slug(b.name)}-${minutes}.zwo`, toZwo(b, { ftp }), 'application/xml'), { small: true, iconName: 'download' }), button('.mrc', () => downloadFile(`${slug(b.name)}-${minutes}.mrc`, toMrc(b), 'text/plain'), { small: true, iconName: 'download' }))); };
   draw();
   modal(w.name, body, { wide: true });
 }

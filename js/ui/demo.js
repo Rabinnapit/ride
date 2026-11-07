@@ -2,6 +2,7 @@
 import { h, modal, icon } from './dom.js';
 import { exerciseDemo, hasDemo, videoUrl } from '../coach/figures.js';
 import { EXERCISES } from '../coach/gym.js';
+import { hasVideo, embedUrl, watchUrl, thumbUrl } from '../coach/videos.js';
 
 function videoLink(name, cls = 'btn small') {
   return h('a', { class: cls, href: videoUrl(name), target: '_blank', rel: 'noopener' }, icon('play'), 'Watch real videos');
@@ -10,12 +11,21 @@ function videoLink(name, cls = 'btn small') {
 export function showExercise(key, { sets = null, reps = null, note = null } = {}) {
   const ex = EXERCISES[key]; if (!ex) return;
   const demo = exerciseDemo(key, { size: 'large' });
+  // Real video, loaded only when tapped (saves data on the go).
+  let player = null;
+  if (hasVideo(key)) {
+    player = h('div', { class: 'video-slot' }, h('img', { class: 'video-thumb', src: thumbUrl(key), alt: '', loading: 'lazy' }));
+    const play = h('button', { class: 'video-play', type: 'button', onClick: () => { player.innerHTML = ''; player.classList.add('on'); player.appendChild(h('iframe', { src: embedUrl(key), title: `${ex.name} — video demonstration`, allow: 'autoplay; encrypted-media; picture-in-picture', allowfullscreen: 'true', loading: 'lazy', referrerpolicy: 'strict-origin-when-cross-origin' })); } },
+      icon('play'), h('span', null, 'Play real video'), h('small', null, 'YouTube · uses data'));
+    player.appendChild(play);
+  }
   modal(ex.name, h('div', { class: 'stack' },
-    demo || h('p', { class: 'muted' }, 'No illustration for this one — the videos show it best.'),
+    player,
+    demo ? h('details', { class: 'demo-fold', open: !player }, h('summary', null, 'Start and finish positions'), demo) : (player ? null : h('p', { class: 'muted' }, 'No illustration for this one — the videos show it best.')),
     sets ? h('p', null, h('strong', null, `${sets} × ${reps}`), note ? ` — ${note}` : '') : null,
     h('p', null, ex.cue),
-    h('div', { class: 'row' }, videoLink(ex.name, 'btn small primary')),
-  ));
+    h('div', { class: 'row' }, hasVideo(key) ? h('a', { class: 'btn small', href: watchUrl(key), target: '_blank', rel: 'noopener' }, icon('play'), 'Open in YouTube') : videoLink(ex.name, 'btn small primary'), hasVideo(key) ? videoLink(ex.name) : null),
+  ), { wide: true });
 }
 
 /** Small looping thumbnail (or a video tile when there is no illustration) that opens the full demo. */

@@ -52,7 +52,8 @@ function tick(now) {
   raf = live.size ? requestAnimationFrame(tick) : 0;
 }
 // Cycle (ms): hold start, fade, hold end, fade back.
-const HOLD = 1300, FADE = 450, CYCLE = 2 * (HOLD + FADE);
+const HOLD = 1000, FADE = 900, CYCLE = 2 * (HOLD + FADE);
+const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // ease-in-out: slow at each end, like a controlled rep
 
 /**
  * Build an animated demo for an exercise key, or null when no illustration exists.
@@ -79,8 +80,8 @@ export function exerciseDemo(key, { size = 'large' } = {}) {
     const frame = (now) => {
       const m = ((now - t0) % CYCLE + CYCLE) % CYCLE;
       let o;
-      if (m < HOLD) o = 0; else if (m < HOLD + FADE) o = (m - HOLD) / FADE; else if (m < 2 * HOLD + FADE) o = 1; else o = 1 - (m - 2 * HOLD - FADE) / FADE;
-      if (o !== last) { b.style.opacity = o.toFixed(3); last = o; if (cap) cap.textContent = o >= 0.5 ? endL : startL; }
+      if (m < HOLD) o = 0; else if (m < HOLD + FADE) o = ease((m - HOLD) / FADE); else if (m < 2 * HOLD + FADE) o = 1; else o = 1 - ease((m - 2 * HOLD - FADE) / FADE);
+      if (o !== last) { b.style.opacity = o.toFixed(3); last = o; if (cap) { const phase = m < HOLD ? 0 : m < HOLD + FADE ? 1 : m < 2 * HOLD + FADE ? 2 : 3; cap.textContent = ['Start: ' + startL, 'Going down / out…', 'Finish: ' + endL, 'Back to start…'][phase]; } }
     };
     frame(performance.now());
     live.add({ el: wrap, frame });

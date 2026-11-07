@@ -12,6 +12,7 @@ import { pushRide, pullCoachNotes } from '../sync/github.js';
 import { buildFocus } from '../coach/focus.js';
 import { fuelingPlan } from '../modules/extras.js';
 import { fuelPanel } from './fuel-ui.js';
+import { rideStory, effortOf } from '../coach/story.js';
 
 const MMP_KEY = [5, 60, 300, 1200, 3600];
 
@@ -156,7 +157,9 @@ registerView('ride', (root, { id }) => {
     aiConfigured() ? button('Analyze with API key', () => analyzeWithAi(r), { small: true }) : null) });
   db.getAll('ai').then(all => { const mine = all.filter(a => a.rideId === r.id).sort((a, b) => b.ts.localeCompare(a.ts)); const box = aiPanel.querySelector('.ai-list'); if (!mine.length) box.appendChild(h('p', { class: 'muted small' }, syncReady() ? 'No analysis yet. Tap Analyze with Claude, paste the message in the chat, then Get saved analysis here.' : 'No analysis yet. Tap Analyze with Claude to send this ride to your coaching chat.')); for (const a of mine) box.appendChild(renderAnalysis(a)); });
 
-  root.append(head, disp, ...notes, mapPanel, streamPanel, zonePanel, curvePanel, dynPanel, cadPanel, effPanel, climbPanel, hrCurve, lapPanel, condPanel, fuelPanel(r), notePanel, aiPanel);
+  const e = effortOf(r);
+  const story = h('section', { class: `story ${e.cls}` }, h('span', { class: `pill effort ${e.cls}` }, e.word), h('p', null, rideStory(r)));
+  root.append(head, story, disp, ...notes, mapPanel, streamPanel, zonePanel, curvePanel, dynPanel, cadPanel, effPanel, climbPanel, hrCurve, lapPanel, condPanel, fuelPanel(r), notePanel, aiPanel);
   return () => { if (chartHandle) chartHandle.destroy(); };
 });
 
