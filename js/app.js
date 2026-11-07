@@ -120,15 +120,20 @@ export async function recomputeRide(ride, extra = {}) {
   const params = rideParams(rideLocalDate(ride), getSettings(), { wellnessWeights, powerValid });
   const meta = { ...ride, device: ride.deviceSummary, riderWeightKg: ride.riderWeightKg };
   const res = await workerCall({ type: 'recompute', meta, streams: st.streams, laps: ride.laps, params }, Object.values(st.streams).filter(v => v?.buffer).map(v => v.buffer));
-  const updated = { ...ride, ...res.summary, powerValid, laps: res.summary.laps || ride.laps };
+  const updated = { ...ride, ...res.summary, powerValid, laps: res.summary.laps || ride.laps, ...(extra.note ? { powerNote: extra.note } : {}) };
   await db.put('streams', { id: ride.id, streams: res.streams });
   await db.put('rides', updated);
   return updated;
 }
 export async function recomputeAll(onProgress = () => {}) {
   const rides = await db.getAll('rides');
+  const overrides = (await db.getSetting('overrides', [])) || []; // e.g. "power meter wasn't zeroed on this ride"
   let i = 0;
-  for (const r of rides) { try { await recomputeRide(r); } catch (e) { console.warn('recompute failed', r.id, e); } onProgress(++i, rides.length); }
+  for (const r of rides) {
+    const ov = overrides.find(o => o.startUtc === r.startUtc && o.powerValid === false);
+    try { await recomputeRide(r, ov ? { powerValid: false, note: ov.note } : {}); } catch (e) { console.warn('recompute failed', r.id, e); }
+    onProgress(++i, rides.length);
+  }
   await refreshData();
 }
 export async function deleteRide(id) {
@@ -277,6 +282,11 @@ export async function boot() {
   if (location.search.includes('share-target')) { history.replaceState(null, '', location.pathname + location.hash); drainInbox(); }
   loadForecast().then(() => { if (state.route.name === 'home' || state.route.name === 'train') render(); });
   const st = getSettings().sync;
-  if (st?.token && st.owner && st.repo) import('./sync/github.js').then(m => m.pullCoachNotes()).then(n => { if (n) { toast(`${n} new note${n > 1 ? 's' : ''} from Claude`); if (['ride', 'coach'].includes(state.route.name)) render(); } }).catch(e => console.warn('coach notes', e));
+  if (st?.token && st.owner && st.repo) import('./sync/github.js').then(async m => {
+    if (m.profileEmpty()) {
+      try { if (await m.adoptRemoteProfile()) { toast('Profile restored from your GitHub backup — recalculating rides…', { ms: 5000 }); await recomputeAll(); render(); toast('Rides recalculated with your FTP, heart-rate and weight'); } } catch (e) { console.warn('profile restore', e); }
+    }
+    return m.pullCoachNotes();
+  }).then(n => { if (n) { toast(`${n} new note${n > 1 ? 's' : ''} from Claude`); if (['ride', 'coach'].includes(state.route.name)) render(); } }).catch(e => console.warn('coach notes', e));
 }
 export { rideLocalDate, rideLocalTime, todayIso, addDays, isoDate, getSettings, saveSettings, db, h, icon, toast };

@@ -94,7 +94,7 @@ registerView('home', (root) => {
   // ---- first-run setup ----
   let setup = null;
   if (!s.profile.ftpHistory?.length && !s.onboarded) {
-    const fileIn = h('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' }, onChange: async (e) => { const f = e.target.files[0]; if (!f) return; try { const { importBackup } = await import('../modules/extras.js'); const { importFile, refreshData } = await import('../app.js'); const obj = JSON.parse(await f.text()); await importBackup(obj, { importRide: (buf, name) => importFile(buf, name, { silent: true }) }); await refreshData(); navigate('home'); } catch (err) { console.error(err); } } });
+    const fileIn = h('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' }, onChange: async (e) => { const f = e.target.files[0]; if (!f) return; try { const { importBackup } = await import('../modules/extras.js'); const { importFile, refreshData, recomputeAll } = await import('../app.js'); const obj = JSON.parse(await f.text()); await importBackup(obj, { importRide: (buf, name) => importFile(buf, name, { silent: true }) }); if (state.rides.length) await recomputeAll(); else await refreshData(); navigate('home'); } catch (err) { console.error(err); } } });
     setup = section('Set up RideHQ', h('div', { class: 'stack' },
       h('p', null, 'Two ways to start: restore your profile file (FTP, heart-rate numbers, weight, goal event, schedule), or fill in Settings by hand. Then import your .fit files.'),
       h('div', { class: 'row' }, button('Restore profile file', () => fileIn.click(), { primary: true, iconName: 'upload' }), button('Open settings', () => navigate('settings')), fileIn),

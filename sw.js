@@ -1,5 +1,5 @@
 // RideHQ service worker — offline app shell + Web Share Target for .fit files.
-const VERSION = 'ridehq-v4';
+const VERSION = 'ridehq-v5';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './vendor/uplot.min.js', './vendor/uplot.min.css', './vendor/chart.umd.js', './vendor/leaflet.js', './vendor/leaflet.css', './vendor/fitsdk.js',

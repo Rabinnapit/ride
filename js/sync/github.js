@@ -42,6 +42,26 @@ async function putFile(path, contentB64, message) {
   return gh(`/repos/${s.owner}/${s.repo}/contents/${path}`, { method: 'PUT', body });
 }
 
+/** True when this device has no rider profile yet (fresh install, nothing entered or restored). */
+export function profileEmpty(s = getSettings()) {
+  const p = (s && s.profile) || {};
+  return !((p.ftpHistory && p.ftpHistory.length) || p.weightKg || p.dob || p.hrmax);
+}
+
+/**
+ * On a device with an empty profile, take the rider profile (and power-data overrides) from the backup repo.
+ * Returns true when something was applied — the caller should then recompute rides.
+ */
+export async function adoptRemoteProfile() {
+  const local = getSettings();
+  if (!profileEmpty(local)) return false;
+  const remote = await pullData();
+  if (!remote.settings || profileEmpty(remote.settings)) return false;
+  await saveSettings({ ...remote.settings, ai: local.ai, sync: local.sync, theme: local.theme, onboarded: true });
+  if (Array.isArray(remote.overrides) && remote.overrides.length) await db.setSetting('overrides', remote.overrides);
+  return true;
+}
+
 /** Push one ride's raw FIT + summary JSON. */
 export async function pushRide(ride, onStatus = () => {}) {
   const raw = await db.get('raw', ride.id);
@@ -61,6 +81,7 @@ export async function pushRide(ride, onStatus = () => {}) {
 export async function pushData(onStatus = () => {}) {
   const s = getSettings();
   const safe = JSON.parse(JSON.stringify(s)); safe.ai.geminiKey = ''; safe.ai.claudeKey = ''; safe.sync.token = '';
+  const fresh = profileEmpty(s); // a device with no profile must not overwrite the one in the backup
   const docs = {
     'data/settings.json': safe,
     'data/wellness.json': await db.getAll('wellness'),
@@ -70,11 +91,18 @@ export async function pushData(onStatus = () => {}) {
     'data/planlog.json': await db.getAll('planlog'),
     'data/overrides.json': (await db.getSetting('overrides', [])) || [],
   };
+  if (fresh) { delete docs['data/settings.json']; delete docs['data/overrides.json']; }
   for (const [path, doc] of Object.entries(docs)) { onStatus(`Uploading ${path}`); await putFile(path, b64text(JSON.stringify(doc, null, 1)), `Update ${path}`); }
   await saveSettings({ sync: { lastPush: new Date().toISOString() } });
 }
 
 export async function pushAll(rides, onStatus = () => {}) {
+  if (profileEmpty() && await adoptRemoteProfile()) {
+    onStatus('Found your profile in the backup — recalculating rides');
+    const app = await import('../app.js');
+    await app.recomputeAll();
+    rides = app.state.rides;
+  }
   const pushed = getSettings().sync.pushed || {};
   let n = 0;
   for (const r of rides) if (!pushed[r.id]) { await pushRide(r, onStatus); n++; }
