@@ -1,4 +1,8 @@
-// Runs before first paint: apply the saved theme so there is no flash.
+// Runs before first paint: apply the saved theme preference (auto follows the phone's day/night setting).
 (function () {
-  try { var t = localStorage.getItem('ridehq.theme'); if (t) document.documentElement.setAttribute('data-theme', t); else if (matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) { /* ignore */ }
+  try {
+    var pref = localStorage.getItem('ridehq.themePref') || 'system';
+    var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  } catch (e) { /* ignore */ }
 })();

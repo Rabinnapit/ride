@@ -1,11 +1,12 @@
 // RideHQ — Analyze: one window selector drives every panel; compare against the previous window.
 import { state, registerView, navigate } from '../app.js';
-import { h, tile, section, empty, segmented, zoneBars, delta, table, input, field, button, pill } from '../ui/dom.js';
+import { h, tile, section, empty, segmented, zoneBars, delta, table, input, field, button, pill, h3i } from '../ui/dom.js';
 import { mmpChart, barsChart, lineChart, pmcChart, ZONE_COLORS } from '../ui/charts.js';
 import { getSettings, units, fmtDuration, fmtNum, todayIso, addDays, daysBetween, rideLocalDate, fmtDate, currentFtp } from '../settings.js';
 import { WINDOWS, windowRange, ridesInRange, aggregate, powerProfile, estimateFtp, trend, weeklyBuckets, multiDayBlocks, COGGAN_PROFILE } from '../metrics/aggregate.js';
 import { MMP_DURATIONS } from '../metrics/compute.js';
 import { CADENCE_BUCKETS } from '../metrics/zones.js';
+import { infoBtn } from '../ui/glossary.js';
 
 let win = '30d', customFrom = null, customTo = null, selectedRide = null;
 
@@ -53,8 +54,8 @@ registerView('analyze', (root) => {
 
   // zones
   const zonePanel = section('Where the time went', h('div', { class: 'grid-2' },
-    a.tizPower && a.powerZones ? h('div', null, h('h3', null, 'Power zones'), zoneBars(a.powerZones, a.tizPower, { fmtTime: v => fmtDuration(v, { short: true }) }), prev?.tizPower ? h('p', { class: 'small muted' }, 'Previous window: ' + prev.powerZones.map((z, i) => `${z.name.split(' ')[0]} ${(prev.tizPower[i] / Math.max(1, prev.tizPower.reduce((x, y) => x + y, 0)) * 100).toFixed(0)}%`).join(' · ')) : null) : null,
-    a.tizHr && a.hrZones ? h('div', null, h('h3', null, 'Heart-rate zones'), zoneBars(a.hrZones, a.tizHr, { fmtTime: v => fmtDuration(v, { short: true }), unit: 'bpm' }), prev?.tizHr ? h('p', { class: 'small muted' }, 'Previous window: ' + prev.hrZones.map((z, i) => `${z.name.split(' ')[0]} ${(prev.tizHr[i] / Math.max(1, prev.tizHr.reduce((x, y) => x + y, 0)) * 100).toFixed(0)}%`).join(' · ')) : null) : null,
+    a.tizPower && a.powerZones ? h('div', null, h3i('Power zones', 'powerzones'), zoneBars(a.powerZones, a.tizPower, { fmtTime: v => fmtDuration(v, { short: true }) }), prev?.tizPower ? h('p', { class: 'small muted' }, 'Previous window: ' + prev.powerZones.map((z, i) => `${z.name.split(' ')[0]} ${(prev.tizPower[i] / Math.max(1, prev.tizPower.reduce((x, y) => x + y, 0)) * 100).toFixed(0)}%`).join(' · ')) : null) : null,
+    a.tizHr && a.hrZones ? h('div', null, h3i('Heart-rate zones', 'hrzones'), zoneBars(a.hrZones, a.tizHr, { fmtTime: v => fmtDuration(v, { short: true }), unit: 'bpm' }), prev?.tizHr ? h('p', { class: 'small muted' }, 'Previous window: ' + prev.hrZones.map((z, i) => `${z.name.split(' ')[0]} ${(prev.tizHr[i] / Math.max(1, prev.tizHr.reduce((x, y) => x + y, 0)) * 100).toFixed(0)}%`).join(' · ')) : null) : null,
   ));
   // 3-zone + polarization
   let threePanel = null;
@@ -63,7 +64,7 @@ registerView('analyze', (root) => {
     const pcts = a.tiz3.map(v => v / tot * 100);
     threePanel = section('Intensity distribution', h('div', null,
       h('div', { class: 'three-zone' }, [['Easy', '#1A63C9'], ['Moderate', '#D4A106'], ['Hard', '#D33A2F']].map(([l, c], i) => h('div', { class: 'tz', style: { flex: Math.max(2, pcts[i]), background: c } }, h('b', null, `${pcts[i].toFixed(0)}%`), h('span', null, l)))),
-      h('p', null, h('strong', null, a.distributionClass), Number.isFinite(a.polarizationIndex) ? ` · polarization index ${a.polarizationIndex.toFixed(2)} (≥ 2.0 = polarized)` : '', prev?.tiz3 ? h('span', { class: 'muted' }, ` · previous: ${prev.tiz3.map(v => (v / Math.max(1, prev.tiz3.reduce((x, y) => x + y, 0)) * 100).toFixed(0)).join(' / ')} % (${prev.distributionClass})`) : ''),
+      h('p', null, h('strong', null, a.distributionClass), ' ', infoBtn('distribution'), Number.isFinite(a.polarizationIndex) ? [` · polarization index ${a.polarizationIndex.toFixed(2)} (≥ 2.0 = polarized) `, infoBtn('pi')] : '', prev?.tiz3 ? h('span', { class: 'muted' }, ` · previous: ${prev.tiz3.map(v => (v / Math.max(1, prev.tiz3.reduce((x, y) => x + y, 0)) * 100).toFixed(0)).join(' / ')} % (${prev.distributionClass})`) : ''),
       h('p', { class: 'small muted' }, 'Easy = below ~75% FTP (or 83% LTHR on HR-only rides), hard = above 105% FTP. Aim for ~80% easy in base phases; keep moderate time deliberate.'),
     ));
   }
@@ -88,23 +89,37 @@ registerView('analyze', (root) => {
     ), { sub: 'Categories from Allen & Coggan; recreational band from Zwift pace groups' });
   }
   // trends
-  const trendPanel = section('Trends', h('div', { class: 'grid-2' }, h('div', null, h('h3', null, 'Efficiency factor (NP ÷ HR)'), h('div', { class: 'tr-ef' })), h('div', null, h('h3', null, 'Aerobic decoupling on rides ≥ 1 h'), h('div', { class: 'tr-dec' })), h('div', null, h('h3', null, 'Average cadence'), h('div', { class: 'tr-cad' })), h('div', null, h('h3', null, 'Left / right balance'), h('div', { class: 'tr-bal' }))), { sub: 'Every ride in the window, oldest to newest' });
+  const trendBox = (cls, title, term, explain) => h('div', null, h3i(title, term), h('p', { class: 'small muted' }, explain), h('div', { class: cls }));
+  const trendPanel = section('Trends', h('div', { class: 'grid-2' },
+    trendBox('tr-ef', 'Efficiency factor (NP ÷ HR)', 'ef', 'Watts per heartbeat. Rising over weeks = your aerobic engine is improving.'),
+    trendBox('tr-dec', 'Aerobic decoupling on rides ≥ 1 h', 'decoupling', 'Heart-rate drift in the second half. Under 5% = good endurance.'),
+    trendBox('tr-cad', 'Average cadence', 'cadence', 'Pedaling speed. Aim for 85–95 rpm on flat roads.'),
+    trendBox('tr-bal', 'Left / right balance', 'balance', 'Share of power from your left leg. 48–52% is normal.'),
+  ), { sub: 'Every ride in the window, oldest to newest. The dashed line is the window average.' });
   setTimeout(() => {
-    const draw = (sel, key, color, opts = {}, extra = {}) => { const tr = trend(rides, key, extra); const box = trendPanel.querySelector(sel); if (tr.length < 2) { box.appendChild(h('p', { class: 'muted small' }, 'Need at least two rides with this metric.')); return; } lineChart(box, tr.map(x => fmtDate(x.date)), [{ label: key, data: tr.map(x => +x.value.toFixed(2)), borderColor: color, backgroundColor: color, pointRadius: 3 }], { height: 170, legend: false, ...opts }); };
-    draw('.tr-ef', 'ef', '#E8731A', {}, { powerOnly: true }); draw('.tr-dec', 'decoupling', '#D33A2F', { yTitle: '%' }, { minTimerSec: 3600, powerOnly: true }); draw('.tr-cad', 'avgCad', '#B3449A', { yTitle: 'rpm' }); draw('.tr-bal', 'balanceLeft', '#7B3FBF', { yTitle: '% left', yMin: 40, yMax: 60 }, { powerOnly: true });
+    const draw = (sel, key, color, opts = {}, extra = {}, dec = 1, unit = '') => {
+      const tr = trend(rides, key, extra); const box = trendPanel.querySelector(sel);
+      if (tr.length < 2) { box.appendChild(h('p', { class: 'muted small' }, tr.length ? `Only one ride so far: ${tr[0].value.toFixed(dec)}${unit}. The trend appears after two.` : 'No rides with this metric in the window yet.')); return; }
+      const vals = tr.map(x => +x.value.toFixed(2)); const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      box.appendChild(h('p', { class: 'trend-avg' }, 'Average ', h('b', null, `${avg.toFixed(dec)}${unit}`), ' · latest ', h('b', null, `${vals.at(-1).toFixed(dec)}${unit}`), ` · ${vals.length} rides`));
+      lineChart(box, tr.map(x => fmtDate(x.date)), [{ label: 'Ride', data: vals, borderColor: color, backgroundColor: color, pointRadius: 3 }], { height: 170, legend: false, avg: true, avgDecimals: dec, ...opts });
+    };
+    draw('.tr-ef', 'ef', '#E8731A', {}, { powerOnly: true }, 2); draw('.tr-dec', 'decoupling', '#D33A2F', { yTitle: '%' }, { minTimerSec: 3600, powerOnly: true }, 1, '%'); draw('.tr-cad', 'avgCad', '#B3449A', { yTitle: 'rpm' }, {}, 0, ' rpm'); draw('.tr-bal', 'balanceLeft', '#7B3FBF', { yTitle: '% left', yMin: 40, yMax: 60 }, { powerOnly: true }, 1, '%');
   }, 0);
   // weekly volume
-  const weeks = weeklyBuckets(all, 12, today);
-  const weekPanel = section('Weekly volume (last 12 weeks)', h('div', { class: 'grid-3' }, h('div', null, h('h3', null, 'Hours'), h('div', { class: 'wk-hours' })), h('div', null, h('h3', null, 'Training load'), h('div', { class: 'wk-load' })), h('div', null, h('h3', null, 'Easy / moderate / hard'), h('div', { class: 'wk-tiz' }))));
+  let weeks = weeklyBuckets(all, 12, today);
+  const firstActive = weeks.findIndex(w => w.rides > 0);
+  if (firstActive > 0) weeks = weeks.slice(firstActive); // start at your first riding week so empty weeks don't drag the average down
+  const weekPanel = section('Weekly volume', h('div', { class: 'grid-3' }, h('div', null, h('h3', null, 'Hours'), h('div', { class: 'wk-hours' })), h('div', null, h3i('Training load', 'load'), h('div', { class: 'wk-load' })), h('div', null, h3i('Easy / moderate / hard', 'threezone'), h('div', { class: 'wk-tiz' }))));
   setTimeout(() => {
     const labels = weeks.map(w => fmtDate(w.from));
-    barsChart(weekPanel.querySelector('.wk-hours'), labels, [{ label: 'Hours', data: weeks.map(w => +(w.timerSec / 3600).toFixed(1)), backgroundColor: '#1A63C9' }], { height: 190, legend: false, yTitle: 'hours' });
-    barsChart(weekPanel.querySelector('.wk-load'), labels, [{ label: 'Load', data: weeks.map(w => Math.round(w.load)), backgroundColor: '#E8731A' }], { height: 190, legend: false, yTitle: 'TSS' });
+    barsChart(weekPanel.querySelector('.wk-hours'), labels, [{ label: 'Hours', data: weeks.map(w => +(w.timerSec / 3600).toFixed(1)), backgroundColor: '#1A63C9' }], { height: 190, legend: true, yTitle: 'hours', avg: true });
+    barsChart(weekPanel.querySelector('.wk-load'), labels, [{ label: 'Load', data: weeks.map(w => Math.round(w.load)), backgroundColor: '#E8731A' }], { height: 190, legend: true, yTitle: 'TSS', avg: true, avgDecimals: 0 });
     barsChart(weekPanel.querySelector('.wk-tiz'), labels, [['Easy', '#1A63C9'], ['Moderate', '#D4A106'], ['Hard', '#D33A2F']].map(([l, c], i) => ({ label: l, data: weeks.map(w => +((w.tiz3?.[i] || 0) / 3600).toFixed(2)), backgroundColor: c })), { height: 190, stacked: true, yTitle: 'hours' });
   }, 0);
   // cadence histogram & climbing
   let cadPanel = null;
-  if (a.cadHist) { cadPanel = section('Cadence distribution', h('div', { class: 'cad-chart' })); setTimeout(() => barsChart(cadPanel.querySelector('.cad-chart'), CADENCE_BUCKETS.map(b => b.key + ' rpm'), [{ label: 'Time', data: a.cadHist.map(v => +(v / 3600).toFixed(2)), backgroundColor: CADENCE_BUCKETS.map(b => b.color) }], { height: 180, legend: false, yTitle: 'hours' }), 0); }
+  if (a.cadHist) { cadPanel = section('Cadence distribution', h('div', { class: 'cad-chart' })); setTimeout(() => barsChart(cadPanel.querySelector('.cad-chart'), CADENCE_BUCKETS.map(b => b.key), [{ label: 'Time', data: a.cadHist.map(v => +(v / 3600).toFixed(2)), backgroundColor: CADENCE_BUCKETS.map(b => b.color) }], { height: 180, legend: false, yTitle: 'hours' }), 0); }
   const blocks = multiDayBlocks(rides);
   const climbPanel = section('Climbing & endurance', h('div', { class: 'tiles compact' }, tile(a.climbCount, 'Climbs detected'), tile(units.elevStr(a.climbGainM), 'Gain on climbs'), tile(fmtDuration(a.climbSec, { short: true }), 'Time climbing'), tile(units.distStr(blocks.best2DayM, 0), 'Best 2-day block'), tile(units.distStr(blocks.best3DayM, 0), 'Best 3-day block'), tile(fmtDuration(a.longestRideSec, { short: true }), 'Longest ride')));
   // PMC for window

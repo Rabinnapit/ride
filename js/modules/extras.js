@@ -8,7 +8,8 @@ export async function fetchForecast({ lat, lon }) {
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   if (weatherCache.key === key && Date.now() - weatherCache.at < 30 * 60000) return weatherCache.data;
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,wind_speed_10m,weather_code&daily=temperature_2m_min,temperature_2m_max,precipitation_probability_max,wind_speed_10m_max,sunrise&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=7`;
-  const res = await fetch(url);
+  // never let a slow network hold up the plan generator or the home screen
+  const res = await fetch(url, typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? { signal: AbortSignal.timeout(6000) } : {});
   if (!res.ok) throw new Error(`Weather ${res.status}`);
   const j = await res.json();
   const byDate = {};

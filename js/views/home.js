@@ -1,6 +1,7 @@
 // RideHQ — Home: today's call, form/fitness/fatigue, event progress, focus, latest ride, alerts.
-import { state, registerView, navigate, pmcToday, loadForecast } from '../app.js';
+import { state, registerView, navigate, pmcToday, loadForecast, isInstalled, canInstall, promptInstall } from '../app.js';
 import { h, icon, tile, section, empty, button, progress, pill, zoneBars } from '../ui/dom.js';
+import { withInfo } from '../ui/glossary.js';
 import { pmcChart } from '../ui/charts.js';
 import { getSettings, units, fmtDuration, fmtNum, todayIso, addDays, daysBetween, rideLocalDate, fmtDate, currentFtp, DAY_NAMES } from '../settings.js';
 import { aggregate, ridesInRange, multiDayBlocks, loadMetrics } from '../metrics/aggregate.js';
@@ -26,10 +27,10 @@ registerView('home', (root) => {
   const planLine = todayPlan ? todayPlan.sessions.filter(x => x.kind !== 'mobility').map(x => x.title).join(' · ') : 'No plan yet — generate one in Train';
   const display = h('section', { class: 'display' },
     h('div', { class: 'display-row' },
-      h('div', { class: 'display-cell' }, h('div', { class: 'dv' }, pm ? pm.ctl.toFixed(0) : '–'), h('div', { class: 'dl' }, 'Fitness')),
-      h('div', { class: 'display-cell' }, h('div', { class: 'dv' }, pm ? pm.atl.toFixed(0) : '–'), h('div', { class: 'dl' }, 'Fatigue')),
-      h('div', { class: 'display-cell' }, h('div', { class: `dv ${tsbWord(pm?.tsb ?? 0).cls}` }, pm ? (pm.tsb > 0 ? '+' : '') + pm.tsb.toFixed(0) : '–'), h('div', { class: 'dl' }, `Form · ${tsbWord(pm?.tsb ?? 0).word}`)),
-      h('div', { class: 'display-cell' }, h('div', { class: `dv ${state.readiness ? state.readiness.band : ''}` }, state.readiness ? state.readiness.score : '–'), h('div', { class: 'dl' }, state.readiness ? 'Readiness' : 'Readiness · log wellness')),
+      h('div', { class: 'display-cell' }, h('div', { class: 'dv' }, pm ? pm.ctl.toFixed(0) : '–'), h('div', { class: 'dl' }, ...withInfo('Fitness', 'ctl'))),
+      h('div', { class: 'display-cell' }, h('div', { class: 'dv' }, pm ? pm.atl.toFixed(0) : '–'), h('div', { class: 'dl' }, ...withInfo('Fatigue', 'atl'))),
+      h('div', { class: 'display-cell' }, h('div', { class: `dv ${tsbWord(pm?.tsb ?? 0).cls}` }, pm ? (pm.tsb > 0 ? '+' : '') + pm.tsb.toFixed(0) : '–'), h('div', { class: 'dl' }, ...withInfo(`Form · ${tsbWord(pm?.tsb ?? 0).word}`, 'tsb'))),
+      h('div', { class: 'display-cell' }, h('div', { class: `dv ${state.readiness ? state.readiness.band : ''}` }, state.readiness ? state.readiness.score : '–'), h('div', { class: 'dl' }, ...withInfo(state.readiness ? 'Readiness' : 'Readiness · log wellness', 'readiness'))),
     ),
     h('div', { class: 'display-foot' },
       h('div', { class: 'display-today' }, h('strong', null, `${DAY_NAMES[new Date().getDay()]} ${fmtDate(today)}`), ' — ', planLine),
@@ -88,7 +89,7 @@ registerView('home', (root) => {
 
   // ---- latest ride ----
   const last = rides[0];
-  const latest = last ? section('Latest ride', rideCard(last), { actions: button('All rides', () => navigate('rides'), { small: true }) }) : section('Latest ride', empty('Drop a .fit file anywhere on this page, or use Import ride.', button('Import ride', () => document.querySelector('input[type=file]').click(), { primary: true })));
+  const latest = last ? section('Latest ride', rideCard(last), { actions: button('All rides', () => navigate('rides'), { small: true }) }) : section('Latest ride', empty('Drop a .fit file anywhere on this page, or use Import ride.', button('Import ride', () => document.querySelector('input[data-fit]').click(), { primary: true })));
 
   // ---- first-run setup ----
   let setup = null;
@@ -105,10 +106,18 @@ registerView('home', (root) => {
   for (const r of rides.slice(0, 5)) if (r.ftpSuspectLow) { alerts.push({ cls: 'warn', text: `${fmtDate(rideLocalDate(r))}: NP above FTP for ${fmtDuration(r.timerSec, { short: true })} — your FTP is probably set too low.`, go: `ride/${r.id}` }); break; }
   const odo = rides.reduce((a, r) => a + r.distanceM, 0) / 1000;
   for (const c of state.equipment) { const st = componentStatus(c, odo); if (st.state !== 'ok') alerts.push({ cls: st.state === 'due' ? 'bad' : 'warn', text: `${c.name || c.type}: ${st.state === 'due' ? 'due for replacement/service' : 'coming up soon'}${st.usedKm != null ? ` (${st.usedKm.toFixed(0)} km)` : ''}.`, go: 'equipment' }); }
+  if (rides.length && !s.sync?.token) alerts.push({ cls: 'warn', text: 'Connect your private GitHub backup (ridehq-data) so your rides are safe and Claude can read them and save its analyses.', go: 'settings/backup' });
   if (!state.wellness.find(w => w.date === today)) alerts.push({ cls: '', text: 'Log today\'s wellness (sleep, resting HR, HRV) for a readiness score.', go: 'wellness' });
   const alertPanel = alerts.length ? h('div', { class: 'alerts' }, alerts.map(a => h('button', { class: `alert ${a.cls}`, onClick: () => navigate(a.go) }, icon(a.cls === 'bad' ? 'warn' : a.cls === 'warn' ? 'warn' : 'info'), h('span', null, a.text)))) : null;
 
-  root.append(setup, display, alertPanel, h('div', { class: 'grid-2' }, focusPanel, eventPanel), weekPanel, pmcPanel, latest);
+  // ---- install card (phone): installing adds RideHQ to the share menu ----
+  let install = null;
+  if (!isInstalled() && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    install = h('div', { class: 'alert static install' }, icon('download'),
+      h('span', null, h('strong', null, 'Install RideHQ on this phone. '), 'Then it appears in OnelapFit\'s share menu, so one tap sends a ride here.'),
+      canInstall() ? button('Install app', () => promptInstall(), { primary: true, small: true }) : button('How to install', () => navigate('howto'), { small: true }));
+  }
+  root.append(setup, install, display, alertPanel, h('div', { class: 'grid-2' }, focusPanel, eventPanel), weekPanel, pmcPanel, latest);
 });
 
 export function focusCard(c) {

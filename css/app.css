@@ -259,3 +259,24 @@ details summary { cursor: pointer; font-weight: 500; }
 :root[data-theme="dark"] .fg-stage img { filter: invert(1) hue-rotate(180deg); mix-blend-mode: screen; }
 :root[data-theme="dark"] .fg.thumb { background: var(--bg); }
 .btn svg { flex-shrink: 0; }
+/* glossary + zone badges + chart headers */
+.info-btn { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--card); color: var(--muted); font: 600 11px/1 var(--font); cursor: pointer; vertical-align: 2px; padding: 0; }
+.info-btn:hover { color: var(--accent); border-color: var(--accent); }
+.display .info-btn { background: transparent; color: var(--display-muted); border-color: rgba(255,255,255,0.3); }
+.gl-good { background: var(--accent-soft); border-radius: 8px; padding: 8px 10px; }
+.zone-badge { display: inline-grid; place-items: center; min-width: 26px; height: 18px; border-radius: 4px; color: #fff; font: 600 11.5px/1 var(--font); flex-shrink: 0; }
+.chart-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font-size: 13.5px; margin: 6px 0 2px; }
+.chart-head .ch-name { font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.chart-head .ch-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.chart-head .ch-stat { color: var(--muted); } .chart-head .ch-stat b { color: var(--ink); font-weight: 600; }
+.chart-head .ch-live { margin-left: auto; color: var(--ink); font-variant-numeric: tabular-nums; }
+.trend-avg { font-size: 13px; color: var(--muted); margin: -4px 0 4px; } .trend-avg b { color: var(--ink); }
+.gloss-list { display: grid; gap: 10px; } .gloss-item h3 { margin: 0 0 4px; font-size: 16px; } .gloss-item p { margin: 0 0 4px; font-size: 14.5px; }
+.alert.install { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.alert.install svg { color: var(--accent); }
+.theme-toggle svg { display: block; }
+
+/* briefly highlight a section opened from a link */
+.flash { animation: flash 2s ease-out 1; }
+@keyframes flash { 0%, 30% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .flash { animation: none; outline: 3px solid var(--accent); } }

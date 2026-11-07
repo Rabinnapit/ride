@@ -18,7 +18,7 @@ registerView('rides', (root) => {
   if (filter === 'outdoor') rides = rides.filter(r => !r.indoor);
   const a = aggregate(rides.filter(r => !r.excluded));
 
-  const head = h('div', { class: 'page-head' }, h('h1', null, 'Rides'), h('div', { class: 'page-actions' }, button('Import ride', () => document.querySelector('input[type=file]').click(), { primary: true, iconName: 'upload' })));
+  const head = h('div', { class: 'page-head' }, h('h1', null, 'Rides'), h('div', { class: 'page-actions' }, button('Import ride', () => document.querySelector('input[data-fit]').click(), { primary: true, iconName: 'upload' })));
   const controls = h('div', { class: 'controls' },
     segmented([{ value: '30d', label: '30 d' }, { value: '90d', label: '90 d' }, { value: '365d', label: 'Year' }, { value: 'all', label: 'All' }], range, v => { range = v; navigate('rides'); }),
     segmented([{ value: 'all', label: 'All' }, { value: 'power', label: 'With power' }, { value: 'long', label: '2 h+' }, { value: 'outdoor', label: 'Outdoor' }, { value: 'indoor', label: 'Indoor' }], filter, v => { filter = v; navigate('rides'); }),

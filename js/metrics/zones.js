@@ -1,22 +1,22 @@
 // RideHQ — zone models. Boundaries use floor(pct × anchor) upper bounds so they match the Magene/OnelapFit tables.
 
 export const POWER_ZONES = [
-  { z: 1, key: 'ar', name: 'Active Recovery', pct: [0, 0.55], color: '#8e9aaf' },
-  { z: 2, key: 'end', name: 'Endurance', pct: [0.55, 0.75], color: '#3fa7e0' },
-  { z: 3, key: 'tempo', name: 'Tempo', pct: [0.75, 0.90], color: '#7cc243' },
-  { z: 4, key: 'lt', name: 'Threshold', pct: [0.90, 1.05], color: '#f2c200' },
-  { z: 5, key: 'vo2', name: 'VO2max', pct: [1.05, 1.20], color: '#f58a1f' },
-  { z: 6, key: 'ac', name: 'Anaerobic', pct: [1.20, 1.50], color: '#e84a3c' },
-  { z: 7, key: 'nm', name: 'Neuromuscular', pct: [1.50, Infinity], color: '#9b3fbf' },
+  { z: 1, key: 'ar', name: 'Recovery', pct: [0, 0.55], color: '#7589A8' },
+  { z: 2, key: 'end', name: 'Endurance', pct: [0.55, 0.75], color: '#1A63C9' },
+  { z: 3, key: 'tempo', name: 'Tempo', pct: [0.75, 0.90], color: '#2E9E4F' },
+  { z: 4, key: 'lt', name: 'Threshold', pct: [0.90, 1.05], color: '#D4A106' },
+  { z: 5, key: 'vo2', name: 'VO2max', pct: [1.05, 1.20], color: '#E8731A' },
+  { z: 6, key: 'ac', name: 'Anaerobic', pct: [1.20, 1.50], color: '#D33A2F' },
+  { z: 7, key: 'nm', name: 'Sprint', pct: [1.50, Infinity], color: '#7B3FBF' },
 ];
 
-export const HR_ZONES_PCTMAX = [
-  { z: 0, key: 'rest', name: 'Rest', pct: [0, 0.50], color: '#b8c0cc' },
-  { z: 1, key: 'z1', name: 'Z1 Recovery', pct: [0.50, 0.60], color: '#8e9aaf' },
-  { z: 2, key: 'z2', name: 'Z2 Fat burn', pct: [0.60, 0.70], color: '#3fa7e0' },
-  { z: 3, key: 'z3', name: 'Z3 Aerobic', pct: [0.70, 0.80], color: '#7cc243' },
-  { z: 4, key: 'z4', name: 'Z4 Threshold', pct: [0.80, 0.90], color: '#f2c200' },
-  { z: 5, key: 'z5', name: 'Z5 Red-line', pct: [0.90, Infinity], color: '#e84a3c' },
+export const HR_ZONES_PCTMAX = [ // same boundaries as the Magene / OnelapFit app
+  { z: 1, key: 'z1', name: 'Relaxed', pct: [0, 0.50], color: '#9AA6B6' },
+  { z: 2, key: 'z2', name: 'Recovery', pct: [0.50, 0.60], color: '#7589A8' },
+  { z: 3, key: 'z3', name: 'Endurance', pct: [0.60, 0.70], color: '#1A63C9' },
+  { z: 4, key: 'z4', name: 'Aerobic', pct: [0.70, 0.80], color: '#2E9E4F' },
+  { z: 5, key: 'z5', name: 'Threshold', pct: [0.80, 0.90], color: '#D4A106' },
+  { z: 6, key: 'z6', name: 'Red-line', pct: [0.90, Infinity], color: '#D33A2F' },
 ];
 
 export const HR_ZONES_LTHR = [ // Coggan HR zones, % of LTHR

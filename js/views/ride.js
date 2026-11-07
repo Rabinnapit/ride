@@ -1,6 +1,7 @@
 // RideHQ — ride detail: summary, map, streams, zones, power curve, dynamics, climbs, laps, AI analysis.
 import { state, registerView, navigate, db, updateRide, deleteRide, recomputeRide, refreshData } from '../app.js';
-import { h, icon, tile, section, empty, button, segmented, zoneBars, kv, table, modal, confirmDialog, toast, input, field, pill, downloadFile } from '../ui/dom.js';
+import { h, icon, tile, section, empty, button, segmented, zoneBars, kv, table, modal, confirmDialog, toast, input, field, pill, downloadFile, h3i } from '../ui/dom.js';
+import { withInfo } from '../ui/glossary.js';
 import { streamsChart, routeMap, mmpChart, barsChart, lineChart, powerPhaseDonut, ZONE_COLORS } from '../ui/charts.js';
 import { getSettings, units, fmtDuration, fmtNum, rideLocalDate, rideLocalTime, fmtDate, addDays, todayIso } from '../settings.js';
 import { MMP_DURATIONS } from '../metrics/compute.js';
@@ -56,7 +57,16 @@ registerView('ride', (root, { id }) => {
     const box = streamPanel.querySelector('.streams'); box.innerHTML = '';
     if (chartHandle) chartHandle.destroy();
     const keys = [power ? 'power' : null, 'hr', 'cad', 'speed', 'alt', 'temp'].filter(k => k && st.streams[k]);
-    chartHandle = streamsChart(box, st.streams, keys, { xMode, tempConv: c => units.temp(c).v, speedConv: ms => units.speed(ms).v, altConv: m => units.elev(m).v });
+    const spd = units.speed(1), sp = v => units.speed(v).v, tc = c => units.temp(c).v, el = m => units.elev(m).v;
+    const stats = {
+      power: { avg: r.avgPower, max: r.maxPower, note: 'includes coasting' },
+      hr: { avg: r.avgHr, max: r.maxHr },
+      cad: { avg: r.avgCad, max: r.maxCad, note: 'pedaling only' },
+      speed: { avg: sp(r.avgSpeed), max: sp(r.maxSpeed), dec: 1 },
+      alt: { min: el(r.minAlt), max: el(r.maxAlt), extra: `Climbing ${units.elevStr(r.ascentM)}` },
+      temp: { avg: tc(r.avgTemp), min: tc(r.minTemp), max: tc(r.maxTemp) },
+    };
+    chartHandle = streamsChart(box, st.streams, keys, { xMode, tempConv: tc, speedConv: sp, altConv: el, stats, units: { speed: spd.u, alt: units.elev(1).u, temp: units.temp(0).u } });
   };
   db.get('streams', r.id).then(st => {
     if (!st) return;
@@ -67,8 +77,8 @@ registerView('ride', (root, { id }) => {
 
   // ---- zones ----
   const zonePanel = section('Time in zones', h('div', { class: 'grid-2' },
-    power ? h('div', null, h('h3', null, `Power zones (FTP ${r.paramsUsed.ftp} W)`), zoneBars(r.powerZones, r.tizPower, { fmtTime: fmtDuration }), h('p', { class: 'small muted' }, `${fmtDuration(r.coastingSec, { short: true })} coasting (${r.coastingPct.toFixed(0)}%) not counted — matches your Magene app. Change in Settings → Zones.`)) : null,
-    r.tizHr ? h('div', null, h('h3', null, `Heart-rate zones (${s.zones.hrModel === 'pctmax' ? `max ${r.paramsUsed.hrmax}` : `LTHR ${r.paramsUsed.lthr}`})`), zoneBars(r.hrZones, r.tizHr, { fmtTime: fmtDuration, unit: 'bpm' })) : null,
+    power ? h('div', null, h3i(`Power zones (FTP ${r.paramsUsed.ftp} W)`, 'powerzones'), zoneBars(r.powerZones, r.tizPower, { fmtTime: fmtDuration }), h('p', { class: 'small muted' }, `${fmtDuration(r.coastingSec, { short: true })} coasting (${r.coastingPct.toFixed(0)}%) not counted — matches your Magene app. Change in Settings → Zones.`)) : null,
+    r.tizHr ? h('div', null, h('h3', null, ...withInfo(`Heart-rate zones (${s.zones.hrModel === 'pctmax' ? `max ${r.paramsUsed.hrmax}` : `LTHR ${r.paramsUsed.lthr}`})`, 'hrzones')), zoneBars(r.hrZones, r.tizHr, { fmtTime: fmtDuration, unit: 'bpm' })) : null,
   ), { sub: r.tiz3 ? `Easy / moderate / hard: ${r.tiz3.map(v => (v / Math.max(1, r.tiz3.reduce((a, b) => a + b, 0)) * 100).toFixed(0)).join(' / ')} % → ${r.distributionClass}${Number.isFinite(r.polarizationIndex) ? ` (polarization index ${r.polarizationIndex.toFixed(2)})` : ''}` : null });
 
   // ---- power curve ----
@@ -101,16 +111,16 @@ registerView('ride', (root, { id }) => {
   // ---- cadence ----
   let cadPanel = null;
   if (r.cadHist) {
-    cadPanel = section('Cadence', h('div', null, h('div', { class: 'tiles compact' }, tile(`${fmtNum(r.avgCad)} rpm`, 'Average (pedalling)'), tile(`${fmtNum(r.maxCad)} rpm`, 'Max'), tile(`${(r.cadHist.slice(0, 2).reduce((a, b) => a + b.seconds, 0) / Math.max(1, r.cadHist.reduce((a, b) => a + b.seconds, 0)) * 100).toFixed(0)}%`, 'Below 70 rpm')), h('div', { class: 'cad-chart' })));
-    setTimeout(() => barsChart(cadPanel.querySelector('.cad-chart'), r.cadHist.map(x => x.key + ' rpm'), [{ label: 'Time', data: r.cadHist.map(x => +(x.seconds / 60).toFixed(1)), backgroundColor: r.cadHist.map(x => x.color) }], { height: 180, yTitle: 'minutes', legend: false }), 0);
+    cadPanel = section('Cadence', h('div', null, h('div', { class: 'tiles compact' }, tile(`${fmtNum(r.avgCad)} rpm`, 'Average cadence', 'pedaling only', '', 'cadence'), tile(`${fmtNum(r.maxCad)} rpm`, 'Max'), tile(`${(r.cadHist.slice(0, 2).reduce((a, b) => a + b.seconds, 0) / Math.max(1, r.cadHist.reduce((a, b) => a + b.seconds, 0)) * 100).toFixed(0)}%`, 'Below 70 rpm')), h('div', { class: 'cad-chart' })));
+    setTimeout(() => barsChart(cadPanel.querySelector('.cad-chart'), r.cadHist.map(x => x.key), [{ label: 'Time', data: r.cadHist.map(x => +(x.seconds / 60).toFixed(1)), backgroundColor: r.cadHist.map(x => x.color) }], { height: 180, yTitle: 'minutes', legend: false }), 0);
   }
 
   // ---- aerobic efficiency & W'bal ----
   let effPanel = null;
   if (power && Number.isFinite(r.ef)) {
-    const rows = [['Efficiency factor (NP ÷ HR)', r.ef.toFixed(2)], Number.isFinite(r.decoupling) ? ['Aerobic decoupling', `${r.decoupling.toFixed(1)}% — ${r.decoupling < 5 ? 'good' : 'aerobic endurance still building'} (EF ${r.ef1.toFixed(2)} → ${r.ef2.toFixed(2)})`] : null, ['Work', `${fmtNum(r.workKj)} kJ ≈ ${fmtNum(r.kcal)} kcal`], Number.isFinite(r.wbalMin) ? ["W′ balance minimum", `${(r.wbalMin / 1000).toFixed(1)} kJ at ${fmtDuration(r.wbalMinAt)} (CP ${r.cpUsed} W, W′ ${(r.wprimeUsed / 1000).toFixed(0)} kJ)`] : null];
+    const rows = [[withInfo('Efficiency factor (NP ÷ HR)', 'ef'), r.ef.toFixed(2)], Number.isFinite(r.decoupling) ? [withInfo('Aerobic decoupling', 'decoupling'), `${r.decoupling.toFixed(1)}% — ${r.decoupling < 5 ? 'good' : 'aerobic endurance still building'} (EF ${r.ef1.toFixed(2)} → ${r.ef2.toFixed(2)})`] : null, [withInfo('Work', 'kj'), `${fmtNum(r.workKj)} kJ ≈ ${fmtNum(r.kcal)} kcal`], Number.isFinite(r.wbalMin) ? [withInfo("W' balance minimum", 'wbal'), `${(r.wbalMin / 1000).toFixed(1)} kJ at ${fmtDuration(r.wbalMinAt)} (CP ${r.cpUsed} W, W' ${(r.wprimeUsed / 1000).toFixed(0)} kJ)${r.wbalMin < 0 ? ' — below zero means your FTP setting is too low' : ''}`] : null];
     effPanel = section('Aerobic efficiency & energy', h('div', null, kv(rows), r.wbalCurve ? h('div', { class: 'wbal-chart' }) : null));
-    if (r.wbalCurve) setTimeout(() => lineChart(effPanel.querySelector('.wbal-chart'), r.wbalCurve.map((_, i) => fmtDuration(i * 10, { short: true })), [{ label: "W′ balance (kJ)", data: r.wbalCurve.map(v => +(v / 1000).toFixed(2)), borderColor: '#D4A106', backgroundColor: '#D4A10622', fill: 'origin', pointRadius: 0 }], { height: 160, yTitle: 'kJ', legend: false }), 0);
+    if (r.wbalCurve) setTimeout(() => lineChart(effPanel.querySelector('.wbal-chart'), r.wbalCurve.map((_, i) => fmtDuration(i * 10, { short: true })), [{ label: "W' balance (kJ)", data: r.wbalCurve.map(v => +(v / 1000).toFixed(2)), borderColor: '#D4A106', backgroundColor: '#D4A10622', fill: 'origin', pointRadius: 0 }], { height: 160, yTitle: 'kJ', legend: false }), 0);
   }
 
   // ---- climbs ----
@@ -149,7 +159,7 @@ registerView('ride', (root, { id }) => {
   return () => { if (chartHandle) chartHandle.destroy(); };
 });
 
-function cell(v, l) { return h('div', { class: 'display-cell' }, h('div', { class: 'dv' }, v), h('div', { class: 'dl' }, l)); }
+function cell(v, l, term = null) { return h('div', { class: 'display-cell' }, h('div', { class: 'dv' }, v), h('div', { class: 'dl' }, ...withInfo(l, term))); }
 
 export function renderAnalysis(a) {
   const p = a.parsed;

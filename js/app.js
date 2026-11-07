@@ -8,6 +8,7 @@ import { chartTheme, destroyCharts } from './ui/charts.js';
 import { fetchForecast } from './modules/extras.js';
 import { matchRidesToPlan } from './coach/planner.js';
 
+export const METRICS_VERSION = 2; // bump when zone definitions or ride metrics change → rides recompute on next launch
 export const state = {
   settings: null, rides: [], wellness: [], plan: null, gymlog: [], equipment: [], pmc: [], forecast: null, readiness: null,
   importing: 0, route: { name: 'home', params: {} }, activeCleanup: null,
@@ -92,8 +93,8 @@ function buildRideRecord(meta, summary, first, { powerValid, note }) {
   };
 }
 export async function importFiles(files) {
-  const list = Array.from(files).filter(f => /\.fit$/i.test(f.name) || f.type === 'application/octet-stream' || f.size > 1000);
-  if (!list.length) { toast('No .fit files selected', { error: true }); return; }
+  const list = Array.from(files).filter(f => f.size > 12);
+  if (!list.length) { toast('No files selected', { error: true }); return; }
   state.importing = list.length; renderNavBadge();
   let ok = 0, dup = 0, fail = 0, last = null;
   for (const f of list) {
@@ -168,7 +169,7 @@ export function render() {
     const out = fn(main, route.params);
     if (typeof out === 'function') state.activeCleanup = out;
   } catch (e) { console.error(e); main.appendChild(h('div', { class: 'panel' }, h('h2', null, 'Something went wrong'), h('p', null, e.message), h('pre', { class: 'small' }, e.stack))); }
-  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === route.name || (route.name === 'ride' && a.dataset.nav === 'rides') || (['equipment', 'nutrition', 'settings', 'howto', 'workouts', 'gym', 'wellness', 'coach'].includes(route.name) && a.dataset.nav === 'more' && !a.dataset.side)));
+  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === route.name || (route.name === 'ride' && a.dataset.nav === 'rides') || (['equipment', 'nutrition', 'settings', 'howto', 'workouts', 'gym', 'wellness', 'coach', 'glossary'].includes(route.name) && a.dataset.nav === 'more' && !a.dataset.side)));
   window.scrollTo({ top: 0 });
 }
 function renderNavBadge() {
@@ -185,20 +186,20 @@ const SIDE = [
   { name: 'home', label: 'Home', icon: 'home' }, { name: 'rides', label: 'Rides', icon: 'rides' }, { name: 'analyze', label: 'Analyze', icon: 'analyze' },
   { name: 'train', label: 'Train', icon: 'train' }, { name: 'gym', label: 'Gym', icon: 'gym' }, { name: 'wellness', label: 'Wellness', icon: 'heart' },
   { name: 'coach', label: 'Coach', icon: 'spark' }, { name: 'equipment', label: 'Equipment', icon: 'wrench' }, { name: 'nutrition', label: 'Fueling', icon: 'food' },
-  { name: 'settings', label: 'Settings', icon: 'settings' }, { name: 'howto', label: 'How to', icon: 'help' },
+  { name: 'glossary', label: 'Glossary', icon: 'info' }, { name: 'settings', label: 'Settings', icon: 'settings' }, { name: 'howto', label: 'How to', icon: 'help' },
 ];
 function buildLayout() {
   const app = document.getElementById('app');
   clear(app);
-  const fileInput = h('input', { type: 'file', accept: '.fit,application/octet-stream', multiple: true, style: { display: 'none' }, onChange: (e) => { importFiles(e.target.files); e.target.value = ''; } });
+  const fileInput = h('input', { type: 'file', multiple: true, style: { display: 'none' }, 'data-fit': '1', onChange: (e) => { importFiles(e.target.files); e.target.value = ''; } });
   const side = h('aside', { class: 'side' },
     h('a', { class: 'brand', href: '#/home' }, h('span', { class: 'brand-mark' }, 'R'), h('span', null, 'RideHQ')),
     h('nav', { class: 'side-nav' }, SIDE.map(n => h('a', { href: `#/${n.name}`, 'data-nav': n.name, 'data-side': '1' }, icon(n.icon), n.label))),
     h('button', { class: 'btn primary import-btn', onClick: () => fileInput.click() }, icon('upload'), 'Import ride'),
     h('div', { id: 'import-badge', class: 'import-badge' }),
-    h('button', { class: 'theme-btn', onClick: toggleTheme, 'aria-label': 'Toggle theme' }, icon('sun'), icon('moon')),
+    h('button', { class: 'theme-btn theme-toggle', onClick: toggleTheme, 'aria-label': 'Change theme' }, icon('auto')),
   );
-  const top = h('header', { class: 'topbar' }, h('a', { class: 'brand', href: '#/home' }, h('span', { class: 'brand-mark' }, 'R'), h('span', null, 'RideHQ')), h('div', { class: 'top-actions' }, h('button', { class: 'icon-btn', onClick: () => fileInput.click(), 'aria-label': 'Import ride' }, icon('upload')), h('button', { class: 'icon-btn', onClick: toggleTheme, 'aria-label': 'Toggle theme' }, icon('sun'))));
+  const top = h('header', { class: 'topbar' }, h('a', { class: 'brand', href: '#/home' }, h('span', { class: 'brand-mark' }, 'R'), h('span', null, 'RideHQ')), h('div', { class: 'top-actions' }, h('button', { class: 'icon-btn', onClick: () => fileInput.click(), 'aria-label': 'Import ride' }, icon('upload')), h('button', { class: 'icon-btn theme-toggle', onClick: toggleTheme, 'aria-label': 'Change theme' }, icon('auto'))));
   const main = h('main', { id: 'view', class: 'view' });
   main.append = (...children) => { append(main, children); };
   const bottom = h('nav', { class: 'bottom-nav' }, NAV.map(n => h('a', { href: `#/${n.name}`, 'data-nav': n.name }, icon(n.icon), h('span', null, n.label))));
@@ -208,19 +209,38 @@ function buildLayout() {
   document.body.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('dragging'); });
   document.body.addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('dragging'); if (e.dataTransfer?.files?.length) importFiles(e.dataTransfer.files); });
 }
+const THEME_ORDER = ['system', 'light', 'dark'];
+const THEME_LABEL = { system: 'Theme: follows your phone (day/night)', light: 'Theme: always light', dark: 'Theme: always dark' };
 function applyTheme() {
   const t = getSettings().theme || 'system';
   const dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-  try { localStorage.setItem('ridehq.theme', dark ? 'dark' : 'light'); } catch { /* ignore */ }
+  try { localStorage.setItem('ridehq.themePref', t); localStorage.setItem('ridehq.theme', dark ? 'dark' : 'light'); } catch { /* ignore */ }
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#0f1b26' : '#1b2733');
+  document.querySelectorAll('.theme-toggle').forEach(b => { b.innerHTML = ''; b.appendChild(icon(t === 'system' ? 'auto' : t === 'dark' ? 'moon' : 'sun')); b.setAttribute('aria-label', `${THEME_LABEL[t]} — tap to change`); b.title = THEME_LABEL[t]; });
   chartTheme();
 }
 async function toggleTheme() {
-  const cur = document.documentElement.getAttribute('data-theme');
-  await saveSettings({ theme: cur === 'dark' ? 'light' : 'dark' });
-  applyTheme(); render();
+  const cur = getSettings().theme || 'system';
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(cur) + 1) % THEME_ORDER.length];
+  await saveSettings({ theme: next });
+  applyTheme(); render(); toast(THEME_LABEL[next]);
 }
+
+// ---------- install (Android / desktop Chrome) ----------
+let deferredInstall = null;
+export function isInstalled() { return matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: minimal-ui)').matches || navigator.standalone === true; }
+export function canInstall() { return !!deferredInstall; }
+export async function promptInstall() {
+  if (!deferredInstall) { toast('Use the browser menu ⋮ → Install app (or Add to Home screen → Install)', { ms: 6000 }); return false; }
+  deferredInstall.prompt();
+  const choice = await deferredInstall.userChoice.catch(() => null);
+  deferredInstall = null;
+  render();
+  return choice?.outcome === 'accepted';
+}
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; if (['home', 'howto', 'settings'].includes(state.route.name)) render(); });
+window.addEventListener('appinstalled', () => { deferredInstall = null; toast('RideHQ installed — it now appears in your share menu'); });
 
 // ---------- share-target inbox & file handling ----------
 async function drainInbox() {
@@ -242,9 +262,12 @@ if ('launchQueue' in window) {
 // ---------- boot ----------
 export async function boot() {
   await loadSettings();
-  applyTheme();
   buildLayout();
+  applyTheme();
   await refreshData();
+  const mv = await db.getSetting('metricsVersion', 1);
+  if (mv < METRICS_VERSION && state.rides.length) { await recomputeAll(); }
+  await db.setSetting('metricsVersion', METRICS_VERSION);
   render();
   window.addEventListener('hashchange', render);
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (getSettings().theme === 'system') { applyTheme(); render(); } });

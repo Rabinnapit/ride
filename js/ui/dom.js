@@ -1,4 +1,5 @@
 // RideHQ — tiny DOM helpers and shared components.
+import { withInfo } from './glossary.js';
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
@@ -39,6 +40,7 @@ const ICONS = {
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7"/><path d="M12 17h.01"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>',
+  auto: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none"/>',
   back: '<path d="m15 5-7 7 7 7"/>',
   check: '<path d="m5 12 4 4L19 7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
@@ -67,28 +69,32 @@ export function icon(name, cls = '') {
 }
 
 /** Numeric tile: big number, small label, optional sub-line. */
-export function tile(value, label, sub = null, cls = '') {
-  return h('div', { class: `tile ${cls}` }, h('div', { class: 'tile-value' }, value), h('div', { class: 'tile-label' }, label), sub != null ? h('div', { class: 'tile-sub' }, sub) : null);
+export function tile(value, label, sub = null, cls = '', term = null) {
+  return h('div', { class: `tile ${cls}` }, h('div', { class: 'tile-value' }, value), h('div', { class: 'tile-label' }, typeof label === 'string' ? withInfo(label, term) : label), sub != null ? h('div', { class: 'tile-sub' }, sub) : null);
 }
-export function section(title, body, { sub = null, actions = null, cls = '' } = {}) {
+export function section(title, body, { sub = null, actions = null, cls = '', term = null } = {}) {
   return h('section', { class: `panel ${cls}` },
-    h('div', { class: 'panel-head' }, h('div', null, h('h2', null, title), sub ? h('p', { class: 'panel-sub' }, sub) : null), actions ? h('div', { class: 'panel-actions' }, actions) : null),
+    h('div', { class: 'panel-head' }, h('div', null, h('h2', null, typeof title === 'string' ? withInfo(title, term) : title), sub ? h('p', { class: 'panel-sub' }, sub) : null), actions ? h('div', { class: 'panel-actions' }, actions) : null),
     h('div', { class: 'panel-body' }, body));
 }
+/** Small heading with an explanation button when it names a known term. */
+export function h3i(text, term = null) { return h('h3', null, withInfo(text, term)); }
 export function empty(text, action = null) { return h('div', { class: 'empty' }, h('p', null, text), action); }
 
-/** Zone distribution bars (label · range · bar · time · %). */
+/** Zone distribution bars, highest zone on top (Z7 … Z1), each row: badge · name · range · bar · time · %. */
 export function zoneBars(zones, seconds, { fmtTime, unit = 'W', totalOverride = null } = {}) {
   const total = totalOverride ?? seconds.reduce((a, b) => a + b, 0);
   const max = Math.max(1, ...seconds);
-  return h('div', { class: 'zones' }, zones.map((z, i) => {
+  const rows = zones.map((z, i) => {
     const s = seconds[i] || 0, p = total ? s / total * 100 : 0;
     const range = z.hi === Infinity ? `> ${z.lo - 1}` : `${z.lo}–${z.hi}`;
+    const name = String(z.name).replace(/^Z\d+[a-c]?\s+/, '');
     return h('div', { class: 'zone-row' },
-      h('div', { class: 'zone-name' }, h('span', { class: 'zone-dot', style: { background: z.color } }), z.name, h('span', { class: 'zone-range' }, ` ${range} ${unit}`)),
+      h('div', { class: 'zone-name' }, h('span', { class: 'zone-badge', style: { background: z.color } }, `Z${i + 1}`), name, h('span', { class: 'zone-range' }, ` ${range} ${unit}`)),
       h('div', { class: 'zone-bar' }, h('div', { class: 'zone-fill', style: { width: `${s / max * 100}%`, background: z.color } })),
       h('div', { class: 'zone-time' }, fmtTime(s)), h('div', { class: 'zone-pct' }, `${p.toFixed(1)}%`));
-  }));
+  });
+  return h('div', { class: 'zones' }, rows.reverse());
 }
 
 let toastTimer = null;

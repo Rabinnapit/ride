@@ -6,7 +6,7 @@ const API = 'https://api.github.com';
 
 function cfg() {
   const s = getSettings().sync;
-  if (!s.owner || !s.repo || !s.token) throw new Error('Set the repository owner, name and token in Settings → Sync first.');
+  if (!s.owner || !s.repo || !s.token) throw new Error('Set the repository owner, name and token in Settings → Backup to GitHub first.');
   return s;
 }
 async function gh(path, { method = 'GET', body, raw = false } = {}) {

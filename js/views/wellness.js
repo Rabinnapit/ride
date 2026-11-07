@@ -51,11 +51,11 @@ registerView('wellness', (root) => {
   const trendPanel = section('Last 60 days', hist.length >= 2 ? h('div', { class: 'grid-2' }, h('div', null, h('h3', null, 'Resting HR & HRV'), h('div', { class: 'w-hr' })), h('div', null, h('h3', null, `Weight (${units.weight(1).u})`), h('div', { class: 'w-wt' })), h('div', null, h('h3', null, 'Sleep (hours)'), h('div', { class: 'w-sl' })), h('div', null, h('h3', null, 'Readiness'), h('div', { class: 'w-rd' }))) : empty('Two or more days of entries draw the trends.'));
   if (hist.length >= 2) setTimeout(() => {
     const labels = hist.map(w => fmtDate(w.date));
-    lineChart(trendPanel.querySelector('.w-hr'), labels, [{ label: 'Resting HR', data: hist.map(w => w.rhr), borderColor: '#D33A2F', backgroundColor: '#D33A2F', pointRadius: 3 }, { label: 'HRV (ms)', data: hist.map(w => w.hrv), borderColor: '#1A63C9', backgroundColor: '#1A63C9', pointRadius: 3 }], { height: 180 });
-    lineChart(trendPanel.querySelector('.w-wt'), labels, [{ label: 'Weight', data: hist.map(w => w.weightKg ? +units.weight(w.weightKg).v.toFixed(1) : null), borderColor: '#2E9E4F', backgroundColor: '#2E9E4F', pointRadius: 3 }], { height: 180, legend: false });
-    lineChart(trendPanel.querySelector('.w-sl'), labels, [{ label: 'Sleep', data: hist.map(w => w.sleepHours), borderColor: '#7B3FBF', backgroundColor: '#7B3FBF', pointRadius: 3 }], { height: 180, legend: false, yMin: 0 });
+    lineChart(trendPanel.querySelector('.w-hr'), labels, [{ label: 'Resting HR', data: hist.map(w => w.rhr), borderColor: '#D33A2F', backgroundColor: '#D33A2F', pointRadius: 3 }, { label: 'HRV (ms)', data: hist.map(w => w.hrv), borderColor: '#1A63C9', backgroundColor: '#1A63C9', pointRadius: 3 }], { height: 180, avg: true, avgDecimals: 0, avgLabel: 'Avg resting HR' });
+    lineChart(trendPanel.querySelector('.w-wt'), labels, [{ label: 'Weight', data: hist.map(w => w.weightKg ? +units.weight(w.weightKg).v.toFixed(1) : null), borderColor: '#2E9E4F', backgroundColor: '#2E9E4F', pointRadius: 3 }], { height: 180, avg: true });
+    lineChart(trendPanel.querySelector('.w-sl'), labels, [{ label: 'Sleep', data: hist.map(w => w.sleepHours), borderColor: '#7B3FBF', backgroundColor: '#7B3FBF', pointRadius: 3 }], { height: 180, yMin: 0, avg: true });
     const scores = hist.map((w, i) => { const pm = state.pmc.find(p => p.date === w.date); const sc = readinessScore(w, hist.slice(Math.max(0, i - 60), i), pm?.tsb); return sc ? sc.score : null; });
-    lineChart(trendPanel.querySelector('.w-rd'), labels, [{ label: 'Readiness', data: scores, borderColor: '#E8731A', backgroundColor: '#E8731A', pointRadius: 3 }], { height: 180, legend: false, yMin: 0, yMax: 100 });
+    lineChart(trendPanel.querySelector('.w-rd'), labels, [{ label: 'Readiness', data: scores, borderColor: '#E8731A', backgroundColor: '#E8731A', pointRadius: 3 }], { height: 180, yMin: 0, yMax: 100, avg: true, avgDecimals: 0 });
   }, 0);
 
   root.append(h('div', { class: 'page-head' }, h('h1', null, 'Wellness')), h('div', { class: 'grid-2' }, readyPanel, entryPanel), trendPanel);

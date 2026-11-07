@@ -5,7 +5,7 @@ import { getSettings, saveSettings, units, todayIso, fmtDate, hrmaxEstimate, age
 import { CLAUDE_MODELS, listGeminiModels } from '../ai/ai.js';
 import { testConnection, pushAll, pullData, listRemoteRides, downloadRemote } from '../sync/github.js';
 import { exportBackup, importBackup } from '../modules/extras.js';
-import { importFile } from '../app.js';
+import { importFile, isInstalled, canInstall, promptInstall } from '../app.js';
 import { storageEstimate } from '../db.js';
 
 registerView('settings', (root) => {
@@ -109,7 +109,7 @@ registerView('settings', (root) => {
       field('Repository owner', input({ type: 'text', value: sy.owner, placeholder: 'rabinnapit', onChange: e => saveSettings({ sync: { owner: e.target.value.trim() } }) })),
       field('Repository name', input({ type: 'text', value: sy.repo, onChange: e => saveSettings({ sync: { repo: e.target.value.trim() } }) })),
       field('Branch', input({ type: 'text', value: sy.branch, onChange: e => saveSettings({ sync: { branch: e.target.value.trim() || 'main' } }) })),
-      field('Fine-grained token', input({ type: 'password', value: sy.token, autocomplete: 'off', onChange: e => saveSettings({ sync: { token: e.target.value.trim() } }) }), 'Contents: read & write on this one repository only'),
+      field('Fine-grained token', input({ type: 'password', value: sy.token, autocomplete: 'off', placeholder: 'github_pat_…', onChange: e => saveSettings({ sync: { token: e.target.value.trim() } }) }), 'Contents: read & write on this one repository only'),
       field('Back up automatically after import', select([{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }], String(sy.autoPush), { onChange: e => saveSettings({ sync: { autoPush: e.target.value === 'true' } }) })),
     ),
     h('div', { class: 'row' },
@@ -121,7 +121,7 @@ registerView('settings', (root) => {
     h('details', null, h('summary', null, 'How to create the repo and token (2 minutes)'), h('ol', { class: 'steps' },
       h('li', null, 'On github.com, create a new repository named ', h('code', null, 'ridehq-data'), ' and set it to ', h('b', null, 'Private'), '. Your ride files contain GPS tracks that start at home — never put them in the public Pages repo.'),
       h('li', null, 'Settings → Developer settings → Personal access tokens → ', h('b', null, 'Fine-grained tokens'), ' → Generate new token.'),
-      h('li', null, 'Repository access: ', h('b', null, 'Only select repositories'), ' → ridehq-data. Permissions: Repository permissions → ', h('b', null, 'Contents: Read and write'), '. Expiry: 1 year.'),
+      h('li', null, 'Repository access: ', h('b', null, 'Only select repositories'), ' → ridehq-data. Permissions: tap ', h('b', null, '+ Add permissions'), ' → ', h('b', null, 'Contents'), ', then change its access from Read-only to ', h('b', null, 'Read and write'), ' (Metadata: Read-only is added automatically). Expiry: 1 year.'),
       h('li', null, 'Paste the token above, set owner to your GitHub username, then Test connection and Back up everything now.'),
       h('li', null, 'On another device: install the app, paste the same token, then Restore from GitHub.'),
     )),
@@ -144,7 +144,12 @@ registerView('settings', (root) => {
     storage,
   ));
 
-  root.append(h('div', { class: 'page-head' }, h('h1', null, 'Settings')), profilePanel, zonesPanel, goalPanel, aiPanel, syncPanel, dataPanel);
+  // Backup sits first until it's connected (or when opened from a "Connect backup" link).
+  const wantBackup = state.route.params?.id === 'backup';
+  syncPanel.id = 'backup';
+  const order = (!sy.token || wantBackup) ? [syncPanel, profilePanel, zonesPanel, goalPanel, aiPanel] : [profilePanel, zonesPanel, goalPanel, aiPanel, syncPanel];
+  root.append(h('div', { class: 'page-head' }, h('h1', null, 'Settings')), ...order, dataPanel);
+  if (wantBackup) setTimeout(() => { window.scrollTo(0, 0); syncPanel.classList.add('flash'); }, 60);
 
   async function withRecompute(patch) {
     await saveSettings(patch);
@@ -158,9 +163,19 @@ registerView('settings', (root) => {
 
 registerView('howto', (root) => {
   const li = (...c) => h('li', null, ...c);
+  const installed = isInstalled();
   root.append(h('div', { class: 'page-head' }, h('h1', null, 'How to')),
+    section('Install RideHQ and share rides from OnelapFit', h('div', { class: 'stack' },
+      installed ? h('p', null, h('strong', null, 'RideHQ is installed on this device. '), 'If it does not show in the share menu yet, see step 4.') : null,
+      !installed && canInstall() ? button('Install RideHQ now', () => promptInstall(), { primary: true, iconName: 'download' }) : null,
+      h('ol', { class: 'steps' },
+        li(h('b', null, 'Open rabinnapit.github.io/ride in Chrome'), ' on your phone (not inside another app).'),
+        li('Tap ⋮ (top right) → ', h('b', null, 'Install app'), ' or ', h('b', null, 'Add to home screen → Install'), '. Choose Install, not "Create shortcut" — only an installed app can receive shared files.'),
+        li('In OnelapFit open a ride → share icon → ', h('b', null, 'RideHQ'), '. RideHQ opens and imports the ride by itself. You may need to tap "More" or scroll the share list the first time.'),
+        li('Not in the list? Open RideHQ once from the home screen, wait a minute, and try again. Still missing: long-press the RideHQ icon → App info → Uninstall, then install again from Chrome — this refreshes the share settings.'),
+        li(h('b', null, 'Fallback: '), 'share the ride to ', h('b', null, 'Drive'), ' or save it to Files, then tap Import ride here and pick the file. OnelapFit names files with a number (for example 12746) and no .fit ending — that is fine.'),
+      ))),
     section('Get rides in', h('ol', { class: 'steps' },
-      li(h('b', null, 'From the Magene C706 / OnelapFit app (phone):'), ' open the ride → share/export → choose ', h('b', null, 'FIT'), ' → pick ', h('b', null, 'RideHQ'), ' in the share sheet (install the app to your home screen first: browser menu → Add to Home screen). The file imports automatically.'),
       li(h('b', null, 'Any device:'), ' tap Import ride (or drag .fit files onto the page). You can select many files at once — duplicates are skipped.'),
       li(h('b', null, 'Zwift:'), ' zwift.com → My activities → open the ride → download .fit, or copy from Documents/Zwift/Activities on the PC. Virtual rides import with power, HR and cadence; the map is hidden.'),
       li(h('b', null, 'Missing history:'), ' export the rides you have in OnelapFit that are not here yet; the Performance chart only counts what has been imported.'),

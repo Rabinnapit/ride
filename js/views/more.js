@@ -7,13 +7,14 @@ import { aggregate, ridesInRange } from '../metrics/aggregate.js';
 import { buildFocus } from '../coach/focus.js';
 import { askCoach, weeklyReviewPrompt, freeChatPrompt, riderContext, aiConfigured, validateAdjustments, chatMessageForReview, syncReady } from '../ai/ai.js';
 import { pullCoachNotes } from '../sync/github.js';
+import { GLOSSARY } from '../ui/glossary.js';
 import { COMPONENT_TYPES, componentStatus, fuelingPlan, eventFueling } from '../modules/extras.js';
 
 registerView('more', (root) => {
   const items = [
     ['gym', 'Gym', 'Log sets, estimated 1RM, periodization', 'gym'], ['wellness', 'Wellness', 'Sleep, resting HR, HRV, readiness', 'heart'],
     ['coach', 'Coach', 'Claude analysis, notebook, weekly review', 'spark'], ['equipment', 'Equipment', 'Chain, tires, pads by kilometer', 'wrench'],
-    ['nutrition', 'Fueling', 'Carbs per hour, event plan', 'food'], ['settings', 'Settings', 'Profile, FTP, zones, units, sync, backup', 'settings'], ['howto', 'How to', 'Import, share from Magene, Zwift, tokens', 'help'],
+    ['nutrition', 'Fueling', 'Carbs per hour, event plan', 'food'], ['glossary', 'What the numbers mean', 'Plain-English explanation of every term', 'info'], ['settings', 'Settings', 'Profile, FTP, zones, units, sync, backup', 'settings'], ['howto', 'How to', 'Install, share from OnelapFit, Zwift, backup', 'help'],
   ];
   root.append(h('div', { class: 'page-head' }, h('h1', null, 'More')), h('div', { class: 'menu' }, items.map(([r, t, d, i]) => h('a', { class: 'menu-item', href: `#/${r}` }, icon(i), h('span', null, h('b', null, t), h('small', null, d))))));
 });
@@ -27,7 +28,7 @@ registerView('coach', (root) => {
   // ---- Claude chat coach (no API key) ----
   const reviewMsg = () => chatMessageForReview(state.rides, state.wellness, state.plan, s);
   const nbBox = h('div', { class: 'notebook' });
-  db.getSetting('coachNotebook', null).then(nb => { if (nb?.text) { nbBox.append(...markdownish(nb.text), h('p', { class: 'small muted' }, `Updated ${new Date(nb.fetchedAt).toLocaleString()}`)); } else nbBox.appendChild(h('p', { class: 'muted' }, syncReady(s) ? 'No notebook yet — tap Get Claude\'s notes after your first analysis.' : 'Claude keeps a running notebook about your training in your backup repo. Set up backup in Settings to see it here.')); });
+  db.getSetting('coachNotebook', null).then(nb => { if (nb?.text) { nbBox.append(...markdownish(nb.text), h('p', { class: 'small muted' }, `Updated ${new Date(nb.fetchedAt).toLocaleString()}`)); } else nbBox.appendChild(h('p', { class: 'muted' }, syncReady(s) ? 'No notebook yet — tap Get Claude\'s notes after your first analysis.' : 'Claude keeps a running notebook about your training in your backup repo. Connect backup (Settings → Backup to GitHub) to see it here.')); });
   const chatPanel = section('Claude chat coach', h('div', { class: 'stack' },
     h('p', null, 'Your coach lives in the Claude chat. Tap a button: it copies a message and opens the chat; paste and send. Claude reads your rides, saves each analysis, and keeps a notebook so past rides are never re-analyzed.'),
     h('div', { class: 'row' },
@@ -115,3 +116,20 @@ registerView('nutrition', (root) => {
   root.append(h('div', { class: 'page-head' }, h('h1', null, 'Fueling')), calc, evPanel);
 });
 export { fmtDuration, fmtNum, rideLocalDate, fmtDate, markdownish };
+
+// ---------- glossary ----------
+registerView('glossary', (root) => {
+  let q = '';
+  const list = h('div', { class: 'gloss-list' });
+  const draw = () => {
+    list.innerHTML = '';
+    const items = Object.entries(GLOSSARY).filter(([, g]) => !q || (g.term + ' ' + g.what).toLowerCase().includes(q)).sort((a, b) => a[1].term.localeCompare(b[1].term));
+    for (const [, g] of items) list.appendChild(h('div', { class: 'panel gloss-item' }, h('h3', null, g.term), h('p', null, g.what), g.good ? h('p', { class: 'small muted' }, h('strong', null, 'What to look for: '), g.good) : null));
+    if (!items.length) list.appendChild(h('p', { class: 'muted' }, 'No term matches that search.'));
+  };
+  draw();
+  root.append(h('div', { class: 'page-head' }, h('h1', null, 'What the numbers mean')),
+    h('p', { class: 'lead' }, 'Every term in RideHQ in plain English. Tap the small ? next to any number in the app to see its entry.'),
+    input({ type: 'search', placeholder: 'Search, e.g. TSS, form, cadence', id: 'gloss-q', onInput: e => { q = e.target.value.trim().toLowerCase(); draw(); } }),
+    list);
+});
