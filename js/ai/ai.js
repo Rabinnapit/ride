@@ -1,5 +1,5 @@
 // RideHQ — AI coach layer: Gemini or Claude called directly from the browser with the rider's own API key.
-// The deterministic engine computes everything; the model explains, prioritises and proposes adjustments within rules.
+// The deterministic engine computes everything; the model explains, prioritizes and proposes adjustments within rules.
 import { db } from '../db.js';
 import { getSettings, fmtDuration, rideLocalDate } from '../settings.js';
 import { MMP_DURATIONS } from '../metrics/compute.js';
@@ -11,7 +11,7 @@ export const CLAUDE_MODELS = [
 ];
 
 const COACH_SYSTEM = `You are RideHQ's cycling coach: evidence-based, plain-spoken, specific. You coach one recreational road cyclist.
-Rules you never break: at most 2 intensity days per week unless the data says readiness is green and TSB > -10 (then 3); no heavy leg strength within 24 h before the long ride; keep CTL ramp ≤ 7 per week; honour recovery weeks; endurance rides stay ≤ 75% FTP; cite the metric that drives each statement; say "insufficient data" instead of guessing.
+Rules you never break: at most 2 intensity days per week unless the data says readiness is green and TSB > -10 (then 3); no heavy leg strength within 24 h before the long ride; keep CTL ramp ≤ 7 per week; honor recovery weeks; endurance rides stay ≤ 75% FTP; cite the metric that drives each statement; say "insufficient data" instead of guessing.
 All computed numbers in the payload are authoritative — do not recompute TSS, NP or zones. Weight is given in kg; the rider reads lb, so include both when you mention weight. Temperatures in °F.
 Write for a smart adult with no coaching jargon; one or two sentences per point.`;
 
@@ -23,10 +23,10 @@ const ANALYSIS_SCHEMA = {
     concerns: { type: 'array', items: { type: 'string' } },
     focusNext14Days: { type: 'string' },
     planAdjustments: { type: 'array', items: { type: 'object', properties: { date: { type: 'string' }, change: { type: 'string' }, reason: { type: 'string' } }, required: ['date', 'change', 'reason'] } },
-    fuellingNote: { type: 'string' },
+    fuelingNote: { type: 'string' },
     confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
   },
-  required: ['headline', 'keyInsights', 'concerns', 'focusNext14Days', 'planAdjustments', 'fuellingNote', 'confidence'],
+  required: ['headline', 'keyInsights', 'concerns', 'focusNext14Days', 'planAdjustments', 'fuelingNote', 'confidence'],
 };
 
 export async function listGeminiModels(key) {
@@ -92,7 +92,7 @@ export async function askCoach({ kind, user, schema = ANALYSIS_SCHEMA, system = 
 }
 
 // ---------- payload builders ----------
-function compactRide(r) {
+export function compactRide(r) {
   const mmpAt = d => r.mmp ? r.mmp[MMP_DURATIONS.indexOf(d)] : null;
   return {
     date: rideLocalDate(r), name: r.name || null, indoor: r.indoor, durationMin: Math.round(r.timerSec / 60), distanceKm: +(r.distanceM / 1000).toFixed(1), ascentM: r.ascentM,
@@ -122,7 +122,7 @@ export function riderContext(settings, { focus, pmcToday, readiness, plan }) {
 }
 
 export function rideAnalysisPrompt(ride, recentRides, ctx) {
-  return `Analyse this ride for the rider below and return the JSON structure.\n\nRIDER_CONTEXT:\n${JSON.stringify(ctx)}\n\nTHIS_RIDE:\n${JSON.stringify(compactRide(ride))}\n\nRECENT_RIDES (last 30 days, newest last):\n${JSON.stringify(recentRides.map(compactRide))}\n\nFocus on: what this ride trained, how it compares with recent rides, pacing/cadence/dynamics observations, recovery needs, and the single most useful change for the next 14 days. Keep planAdjustments to concrete dated changes only if warranted.`;
+  return `Analyze this ride for the rider below and return the JSON structure.\n\nRIDER_CONTEXT:\n${JSON.stringify(ctx)}\n\nTHIS_RIDE:\n${JSON.stringify(compactRide(ride))}\n\nRECENT_RIDES (last 30 days, newest last):\n${JSON.stringify(recentRides.map(compactRide))}\n\nFocus on: what this ride trained, how it compares with recent rides, pacing/cadence/dynamics observations, recovery needs, and the single most useful change for the next 14 days. Keep planAdjustments to concrete dated changes only if warranted.`;
 }
 export function weeklyReviewPrompt(rides30, agg7, agg30, ctx, wellness) {
   return `Write the weekly review and return the JSON structure.\n\nRIDER_CONTEXT:\n${JSON.stringify(ctx)}\n\nLAST_7_DAYS_AGGREGATE:\n${JSON.stringify(agg7)}\n\nLAST_30_DAYS_AGGREGATE:\n${JSON.stringify(agg30)}\n\nRIDES_LAST_30_DAYS:\n${JSON.stringify(rides30.map(compactRide))}\n\nWELLNESS_LAST_14_DAYS:\n${JSON.stringify(wellness)}\n\nAssess progress toward the goal, intensity distribution, consistency, fatigue, and propose adjustments to the next 14 days within the rules.`;
@@ -148,3 +148,21 @@ export function validateAdjustments(adjustments, plan) {
   return { ok, rejected };
 }
 export { ANALYSIS_SCHEMA, COACH_SYSTEM };
+
+// ---------- Claude chat (no API key): build the message the rider pastes into the coaching chat ----------
+const shortDate = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+function historyTable(rides) {
+  return rides.slice().sort((a, b) => a.startUtc.localeCompare(b.startUtc)).map(r => [rideLocalDate(r), r.id.slice(0, 8), r.name, Math.round(r.timerSec / 60) + 'min', (r.distanceM / 1000).toFixed(1) + 'km', Math.round(r.ascentM || 0) + 'm', r.hasPower && r.powerValid !== false ? `NP${Math.round(r.np)} IF${r.if?.toFixed(2)}` : `HR${Math.round(r.avgHr || 0)}`, `load${Math.round(r.load)}`].join(' ')).join('\n');
+}
+export function syncReady(s = getSettings()) { return !!(s.sync?.token && s.sync?.owner && s.sync?.repo); }
+export function chatMessageForRide(ride, allRides, s = getSettings()) {
+  const when = shortDate(rideLocalDate(ride));
+  if (syncReady(s)) return `Analyze my ride from ${when} — RideHQ ride ${ride.id.slice(0, 8)}. It's backed up in ${s.sync.owner}/${s.sync.repo} with my history. Save the analysis there when you're done.`;
+  const others = allRides.filter(r => r.id !== ride.id && !r.excluded);
+  return `Analyze my ride from ${when} (RideHQ, no repo sync yet).\n\nTHIS RIDE:\n${JSON.stringify(compactRide(ride))}\n\nHISTORY (date id name time dist climb intensity load):\n${historyTable(others)}`;
+}
+export function chatMessageForReview(allRides, wellness, plan, s = getSettings()) {
+  if (syncReady(s)) return `Weekly review please — everything is in ${s.sync.owner}/${s.sync.repo}. Update the coach notebook and adjust my plan if needed.`;
+  const recent = allRides.filter(r => !r.excluded).slice(0, 12);
+  return `Weekly review please (RideHQ, no repo sync yet).\n\nRIDES:\n${historyTable(allRides.filter(r => !r.excluded))}\n\nLAST RIDES DETAIL:\n${JSON.stringify(recent.map(compactRide))}\n\nWELLNESS (last 14):\n${JSON.stringify(wellness.slice(-14))}\n\nPLAN:\n${JSON.stringify(plan ? plan.days.map(d => ({ date: d.date, s: d.sessions.map(x => x.title + (x.done ? ' ✓' : '')) })) : null)}`;
+}

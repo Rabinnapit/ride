@@ -103,3 +103,27 @@ export async function pullData() {
   const get = async (p) => { const r = await gh(`/repos/${s.owner}/${s.repo}/contents/${p}?ref=${encodeURIComponent(s.branch || 'main')}`, { raw: true }); return r ? JSON.parse(new TextDecoder().decode(r)) : null; };
   return { settings: await get('data/settings.json'), wellness: await get('data/wellness.json'), plans: await get('data/plans.json'), gymlog: await get('data/gymlog.json'), equipment: await get('data/equipment.json'), planlog: await get('data/planlog.json'), overrides: await get('data/overrides.json') };
 }
+
+/** Pull Claude's saved analyses (coach/analyses/*.json, coach/reviews/*.json) and the coach notebook into the app. Returns the number of new notes. */
+export async function pullCoachNotes() {
+  const s = cfg();
+  const ref = encodeURIComponent(s.branch || 'main');
+  const known = (await db.getSetting('coachShas', {})) || {};
+  let n = 0;
+  for (const dir of ['coach/analyses', 'coach/reviews']) {
+    const list = await gh(`/repos/${s.owner}/${s.repo}/contents/${dir}?ref=${ref}`);
+    for (const f of list || []) {
+      if (!f.name.endsWith('.json') || known[f.path] === f.sha) continue;
+      const buf = await gh(`/repos/${s.owner}/${s.repo}/contents/${f.path}?ref=${ref}`, { raw: true });
+      try {
+        const o = JSON.parse(new TextDecoder().decode(buf));
+        await db.put('ai', { id: `chat-${f.path}`, ts: o.ts || new Date().toISOString(), kind: o.kind || (dir.endsWith('reviews') ? 'weekly' : 'ride'), provider: 'claude-chat', model: 'Claude (chat)', rideId: o.rideId || null, parsed: o, output: o.body || '', question: o.question || null });
+        known[f.path] = f.sha; n++;
+      } catch (e) { console.warn('bad coach note', f.path, e); }
+    }
+  }
+  const nb = await gh(`/repos/${s.owner}/${s.repo}/contents/coach/notebook.md?ref=${ref}`, { raw: true });
+  if (nb) await db.setSetting('coachNotebook', { text: new TextDecoder().decode(nb), fetchedAt: new Date().toISOString() });
+  await db.setSetting('coachShas', known);
+  return n;
+}

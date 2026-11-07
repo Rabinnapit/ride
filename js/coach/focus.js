@@ -58,7 +58,7 @@ export function buildFocus({ settings, rides, pmc, today = todayIso(), readiness
     cards.push({ id: 'climb', priority: 1, title: 'Raise sustainable W/kg — the climbing lever', metric: { label: 'FTP W/kg', value: wkg.toFixed(2) },
       summary: `Steep ramps are a W/kg problem. Every 10 W of FTP or 2 kg of mass changes a ${g}% climb from grinding to riding. Target ${target} W (${(target / weightKg).toFixed(2)} W/kg) by ${ev?.date ? ev.date.slice(0, 7) : 'spring'}.`,
       evidence: ev2,
-      actions: ['Two sweet-spot/threshold sessions per week (3×12 → 2×20 at 88–100% FTP); one of them low-cadence (55–65 rpm) to build climbing force.', 'Gym: heavy squats, trap-bar deadlift, split squats — max-strength block Dec–Feb, then maintenance.', `Gearing check: with a 34T small ring you want a 32–34T cassette for ${g}%+ ramps; it is cheaper than watts.`, 'Weight trend: log it in Wellness; a slow 0.3–0.5 kg/week loss while fuelling rides keeps the power.'] });
+      actions: ['Two sweet-spot/threshold sessions per week (3×12 → 2×20 at 88–100% FTP); one of them low-cadence (55–65 rpm) to build climbing force.', 'Gym: heavy squats, trap-bar deadlift, split squats — max-strength block Dec–Feb, then maintenance.', `Gearing check: with a 34T small ring you want a 32–34T cassette for ${g}%+ ramps; it is cheaper than watts.`, 'Weight trend: log it in Wellness; a slow 0.3–0.5 kg/week loss while fueling rides keeps the power.'] });
   }
 
   // 3. Endurance & multi-day durability
@@ -83,8 +83,8 @@ export function buildFocus({ settings, rides, pmc, today = todayIso(), readiness
     const s1 = pct(a30.tiz3[0], tot), s2 = pct(a30.tiz3[1], tot), s3 = pct(a30.tiz3[2], tot);
     const basePhase = ['base1', 'base2'].includes(phase.key);
     const want = basePhase ? 80 : 75;
-    if (s1 < want - 10) cards.push({ id: 'distribution', priority: 2, title: 'Too much time in the middle — polarise', metric: { label: 'Easy / moderate / hard (30 d)', value: `${s1.toFixed(0)} / ${s2.toFixed(0)} / ${s3.toFixed(0)} %` },
-      summary: `Distribution reads "${a30.distributionClass}" (polarisation index ${isNum(a30.polarizationIndex) ? a30.polarizationIndex.toFixed(2) : '–'}). Easy days are riding too hard to recover from, and not hard enough to adapt from.`,
+    if (s1 < want - 10) cards.push({ id: 'distribution', priority: 2, title: 'Too much time in the middle — polarize', metric: { label: 'Easy / moderate / hard (30 d)', value: `${s1.toFixed(0)} / ${s2.toFixed(0)} / ${s3.toFixed(0)} %` },
+      summary: `Distribution reads "${a30.distributionClass}" (polarization index ${isNum(a30.polarizationIndex) ? a30.polarizationIndex.toFixed(2) : '–'}). Easy days are riding too hard to recover from, and not hard enough to adapt from.`,
       evidence: [`30-day time in zones: easy ${fmtDuration(a30.tiz3[0], { short: true })}, moderate ${fmtDuration(a30.tiz3[1], { short: true })}, hard ${fmtDuration(a30.tiz3[2], { short: true })}. Target for ${phase.label.split(' —')[0]}: ~${want}% easy.`],
       actions: [`On long rides stay under ${ftp ? Math.round(ftp * 0.75) + ' W' : '75% FTP'} / HR ${settings.profile.lthr ? Math.round(settings.profile.lthr * 0.83) : 146} on the flats — it will feel too easy; that is the point.`, 'Save the hard efforts for the two weekday sessions and planned climbs.', 'Use the planned workouts\' watt targets on the C706 so surges do not creep in.'] });
     else cards.push({ id: 'distribution-ok', priority: 5, title: 'Intensity distribution is on target', metric: { label: 'Easy / moderate / hard (30 d)', value: `${s1.toFixed(0)} / ${s2.toFixed(0)} / ${s3.toFixed(0)} %` }, summary: `Reads "${a30.distributionClass}" — keep the easy days easy and the hard days deliberate.`, evidence: [], actions: [] });

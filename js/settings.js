@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS = {
     hoursPerWeek: 7, maxIntensityDays: 2,
   },
   ai: { provider: 'gemini', geminiKey: '', geminiModel: '', claudeKey: '', claudeModel: 'claude-sonnet-5-5', temperature: 0.3 },
+  coach: { chatUrl: 'https://claude.ai/code/session_01NLohHEiF3yTEd2nd3iAH8T' },
   sync: { owner: '', repo: 'ridehq-data', branch: 'main', token: '', autoPush: false, lastPush: null, lastPull: null, pushed: {} },
   location: { lat: 36.99, lon: 127.09, name: 'Pyeongtaek' },
   pmc: { ctlDays: 42, atlDays: 7 },

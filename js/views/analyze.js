@@ -63,7 +63,7 @@ registerView('analyze', (root) => {
     const pcts = a.tiz3.map(v => v / tot * 100);
     threePanel = section('Intensity distribution', h('div', null,
       h('div', { class: 'three-zone' }, [['Easy', '#1A63C9'], ['Moderate', '#D4A106'], ['Hard', '#D33A2F']].map(([l, c], i) => h('div', { class: 'tz', style: { flex: Math.max(2, pcts[i]), background: c } }, h('b', null, `${pcts[i].toFixed(0)}%`), h('span', null, l)))),
-      h('p', null, h('strong', null, a.distributionClass), Number.isFinite(a.polarizationIndex) ? ` · polarisation index ${a.polarizationIndex.toFixed(2)} (≥ 2.0 = polarised)` : '', prev?.tiz3 ? h('span', { class: 'muted' }, ` · previous: ${prev.tiz3.map(v => (v / Math.max(1, prev.tiz3.reduce((x, y) => x + y, 0)) * 100).toFixed(0)).join(' / ')} % (${prev.distributionClass})`) : ''),
+      h('p', null, h('strong', null, a.distributionClass), Number.isFinite(a.polarizationIndex) ? ` · polarization index ${a.polarizationIndex.toFixed(2)} (≥ 2.0 = polarized)` : '', prev?.tiz3 ? h('span', { class: 'muted' }, ` · previous: ${prev.tiz3.map(v => (v / Math.max(1, prev.tiz3.reduce((x, y) => x + y, 0)) * 100).toFixed(0)).join(' / ')} % (${prev.distributionClass})`) : ''),
       h('p', { class: 'small muted' }, 'Easy = below ~75% FTP (or 83% LTHR on HR-only rides), hard = above 105% FTP. Aim for ~80% easy in base phases; keep moderate time deliberate.'),
     ));
   }

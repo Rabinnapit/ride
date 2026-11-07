@@ -5,6 +5,7 @@ import { lineChart } from '../ui/charts.js';
 import { getSettings, todayIso, fmtDate, units, addDays } from '../settings.js';
 import { EXERCISES, SESSIONS, MOBILITY, GYM_PHASES, e1rm, progression } from '../coach/gym.js';
 import { phaseFor } from '../coach/planner.js';
+import { demoThumb, exerciseLink } from '../ui/demo.js';
 
 registerView('gym', (root, { id }) => {
   const s = getSettings();
@@ -34,21 +35,23 @@ registerView('gym', (root, { id }) => {
   // phase guide
   const daysToEvent = s.goals.event?.date ? Math.round((new Date(s.goals.event.date) - new Date(todayIso())) / 86400000) : null;
   const ph = phaseFor(daysToEvent != null ? Math.ceil(daysToEvent / 7) : null);
-  root.appendChild(section('Strength periodisation', table(['Phase', 'When', 'Scheme'], Object.entries(GYM_PHASES).map(([k, p]) => [h('span', null, p.label, k === ph.gym ? h('b', { class: 'muted' }, ' ← now') : null), p.weeks, p.scheme])), { sub: 'Heavy, fast concentric lifting improves cycling economy and late-ride power (Rønnestad & Mujika 2014). Leave 2 reps in reserve until the max-strength block; never heavy legs the day before the long ride.' }));
-  root.appendChild(section(MOBILITY.title, table(['Movement', 'Dose', 'Cue'], MOBILITY.items.map(i => [i.name, i.reps, h('span', { class: 'small muted' }, i.cue)]))));
+  root.appendChild(section('Strength periodization', table(['Phase', 'When', 'Scheme'], Object.entries(GYM_PHASES).map(([k, p]) => [h('span', null, p.label, k === ph.gym ? h('b', { class: 'muted' }, ' ← now') : null), p.weeks, p.scheme])), { sub: 'Heavy, fast concentric lifting improves cycling economy and late-ride power (Rønnestad & Mujika 2014). Leave 2 reps in reserve until the max-strength block; never heavy legs the day before the long ride.' }));
+  root.appendChild(section(MOBILITY.title, h('div', { class: 'stack' }, MOBILITY.items.map(i => h('div', { class: 'session gym-row' }, demoThumb(i.key, { sets: i.sets, reps: i.reps }), h('span', { class: 'session-text' }, exerciseLink(i.key, i.name, { sets: i.sets, reps: i.reps }), h('small', null, `${i.reps} — ${i.cue}`)))))));
+  root.appendChild(h('p', { class: 'small muted' }, 'Tap any exercise or animation to see the start position and one full rep.'));
 });
 
 function exerciseRow(i, date, logs) {
   const log = logs.find(l => l.exercise === i.key);
   const last = state.gymlog.filter(l => l.exercise === i.key && l.date < date).sort((a, b) => b.date.localeCompare(a.date))[0];
   return h('div', { class: `session gym-row ${log ? 'done' : ''}` },
-    h('span', { class: 'session-text' }, h('b', null, i.name), h('small', null, `${i.sets} × ${i.reps}${i.note ? ` · ${i.note}` : ''} — ${i.cue}`), last ? h('small', { class: 'muted' }, `Last (${fmtDate(last.date)}): ${last.sets.map(x => `${units.weight(x.weight).v.toFixed(1)}×${x.reps}`).join(', ')} · ${progression(last.sets, kg => units.weightStr(kg, 1))}`) : null),
+    demoThumb(i.key, { sets: i.sets, reps: i.reps, note: i.note }),
+    h('span', { class: 'session-text' }, exerciseLink(i.key, i.name, { sets: i.sets, reps: i.reps, note: i.note }), h('small', null, `${i.sets} × ${i.reps}${i.note ? ` · ${i.note}` : ''} — ${i.cue}`), last ? h('small', { class: 'muted' }, `Last (${fmtDate(last.date)}): ${last.sets.map(x => `${units.weight(x.weight).v.toFixed(1)}×${x.reps}`).join(', ')} · ${progression(last.sets, kg => units.weightStr(kg, 1))}`) : null),
     h('span', { class: 'row' }, log ? icon('check', 'ok') : null, button(log ? 'Edit' : 'Log', () => logDialog(date, i.key, log), { small: true })),
   );
 }
 function templatePicker(date) {
   const wrap = h('div', { class: 'stack' });
-  for (const [phase, set] of Object.entries(SESSIONS)) for (const [key, sess] of Object.entries(set)) wrap.appendChild(h('button', { class: 'session', onClick: () => { modal(sess.title, h('div', null, h('p', { class: 'muted small' }, GYM_PHASES[phase].scheme), table(['Exercise', 'Sets × reps', 'Cue'], sess.items.map(i => [i.name, `${i.sets} × ${i.reps}`, h('span', { class: 'small muted' }, i.cue)])), h('div', { class: 'stack' }, sess.items.map(i => button(`Log ${i.name}`, () => logDialog(date, i.key), { small: true })))), { wide: true }); } }, h('span', { class: 'session-dot', style: { background: '#7B3FBF' } }), h('span', { class: 'session-text' }, h('b', null, sess.title), h('small', null, `${GYM_PHASES[phase].label} · ${key}`))));
+  for (const [phase, set] of Object.entries(SESSIONS)) for (const [key, sess] of Object.entries(set)) wrap.appendChild(h('button', { class: 'session', onClick: () => { modal(sess.title, h('div', null, h('p', { class: 'muted small' }, GYM_PHASES[phase].scheme), table(['Exercise', 'Sets × reps', 'Cue'], sess.items.map(i => [exerciseLink(i.key, i.name, { sets: i.sets, reps: i.reps, note: i.note }), `${i.sets} × ${i.reps}`, h('span', { class: 'small muted' }, i.cue)])), h('div', { class: 'stack' }, sess.items.map(i => button(`Log ${i.name}`, () => logDialog(date, i.key), { small: true })))), { wide: true }); } }, h('span', { class: 'session-dot', style: { background: '#7B3FBF' } }), h('span', { class: 'session-text' }, h('b', null, sess.title), h('small', null, `${GYM_PHASES[phase].label} · ${key}`))));
   return wrap;
 }
 function logDialog(date, key, existing = null) {

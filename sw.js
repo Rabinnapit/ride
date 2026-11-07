@@ -1,5 +1,5 @@
 // RideHQ service worker — offline app shell + Web Share Target for .fit files.
-const VERSION = 'ridehq-v1';
+const VERSION = 'ridehq-v2';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './vendor/uplot.min.js', './vendor/uplot.min.css', './vendor/chart.umd.js', './vendor/leaflet.js', './vendor/leaflet.css', './vendor/fitsdk.js',
@@ -9,13 +9,13 @@ const SHELL = [
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png',
   './js/main.js', './js/theme-init.js', './js/app.js', './js/db.js', './js/settings.js', './js/fit/parse.js', './js/fit/worker.js',
   './js/metrics/compute.js', './js/metrics/zones.js', './js/metrics/aggregate.js', './js/metrics/readiness.js',
-  './js/coach/workouts.js', './js/coach/gym.js', './js/coach/planner.js', './js/coach/focus.js', './js/ai/ai.js', './js/sync/github.js', './js/modules/extras.js',
+  './js/coach/workouts.js', './js/coach/gym.js', './js/coach/figures.js', './js/ui/demo.js', './js/coach/planner.js', './js/coach/focus.js', './js/ai/ai.js', './js/sync/github.js', './js/modules/extras.js',
   './js/ui/dom.js', './js/ui/charts.js',
   './js/views/home.js', './js/views/rides.js', './js/views/ride.js', './js/views/analyze.js', './js/views/train.js', './js/views/gym.js', './js/views/wellness.js', './js/views/more.js', './js/views/settings.js',
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));

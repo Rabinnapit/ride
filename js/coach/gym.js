@@ -1,4 +1,4 @@
-// RideHQ — strength training for cyclists: exercise library, periodised session templates, progression.
+// RideHQ — strength training for cyclists: exercise library, periodized session templates, progression.
 
 export const EXERCISES = {
   // Lower body

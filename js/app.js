@@ -161,6 +161,7 @@ export function render() {
   const main = document.getElementById('view');
   if (state.activeCleanup) { try { state.activeCleanup(); } catch { /* ignore */ } state.activeCleanup = null; }
   destroyCharts();
+  document.querySelectorAll('.modal-back').forEach(m => m.remove());
   clear(main);
   const fn = views[route.name] || views.home;
   try {
@@ -183,7 +184,7 @@ const NAV = [
 const SIDE = [
   { name: 'home', label: 'Home', icon: 'home' }, { name: 'rides', label: 'Rides', icon: 'rides' }, { name: 'analyze', label: 'Analyze', icon: 'analyze' },
   { name: 'train', label: 'Train', icon: 'train' }, { name: 'gym', label: 'Gym', icon: 'gym' }, { name: 'wellness', label: 'Wellness', icon: 'heart' },
-  { name: 'coach', label: 'AI coach', icon: 'spark' }, { name: 'equipment', label: 'Equipment', icon: 'wrench' }, { name: 'nutrition', label: 'Fuelling', icon: 'food' },
+  { name: 'coach', label: 'Coach', icon: 'spark' }, { name: 'equipment', label: 'Equipment', icon: 'wrench' }, { name: 'nutrition', label: 'Fueling', icon: 'food' },
   { name: 'settings', label: 'Settings', icon: 'settings' }, { name: 'howto', label: 'How to', icon: 'help' },
 ];
 function buildLayout() {
@@ -249,8 +250,10 @@ export async function boot() {
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (getSettings().theme === 'system') { applyTheme(); render(); } });
   requestPersistence();
   drainInbox();
-  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(e => console.warn('sw', e)); navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.type === 'shared-files') drainInbox(); }); }
+  if ('serviceWorker' in navigator) { const hadController = !!navigator.serviceWorker.controller; let reloaded = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded && !state.importing) { reloaded = true; location.reload(); } }); navigator.serviceWorker.register('./sw.js').catch(e => console.warn('sw', e)); navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.type === 'shared-files') drainInbox(); }); }
   if (location.search.includes('share-target')) { history.replaceState(null, '', location.pathname + location.hash); drainInbox(); }
   loadForecast().then(() => { if (state.route.name === 'home' || state.route.name === 'train') render(); });
+  const st = getSettings().sync;
+  if (st?.token && st.owner && st.repo) import('./sync/github.js').then(m => m.pullCoachNotes()).then(n => { if (n) { toast(`${n} new note${n > 1 ? 's' : ''} from Claude`); if (['ride', 'coach'].includes(state.route.name)) render(); } }).catch(e => console.warn('coach notes', e));
 }
 export { rideLocalDate, rideLocalTime, todayIso, addDays, isoDate, getSettings, saveSettings, db, h, icon, toast };

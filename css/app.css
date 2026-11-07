@@ -232,3 +232,27 @@ textarea.input { resize: vertical; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); } #toast.error { background: var(--bad); color: #fff; }
 @media (min-width: 960px) { #toast { bottom: 24px; } }
 details summary { cursor: pointer; font-weight: 500; }
+
+/* ---------- exercise demos ---------- */
+.fg { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.fg svg { width: 100%; height: auto; display: block; }
+.fg.large { width: 100%; max-width: 360px; margin: 0 auto; }
+.fg.thumb { width: 84px; flex-shrink: 0; background: var(--bg); border-radius: 6px; }
+.fg-static { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+.fg-cap { font-size: 13.5px; color: var(--muted); min-height: 1.4em; text-align: center; }
+.fg-body { fill: none; stroke: var(--ink); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.fg-far { fill: none; stroke: var(--muted); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.55; }
+.fg-head { fill: var(--card); stroke: var(--ink); stroke-width: 2.6; }
+.fg-floor { stroke: var(--line-strong); stroke-width: 1.2; }
+.fg-prop { fill: var(--line); stroke: var(--line-strong); stroke-width: 1; }
+.fg-prop-line { stroke: var(--line-strong); stroke-width: 1.6; stroke-linecap: round; }
+.fg-weight { fill: var(--accent); stroke: none; }
+.fg-hub { fill: var(--card); stroke: none; }
+.fg-cable { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 2; }
+.fg-band { stroke: var(--warn); stroke-width: 2; stroke-linecap: round; }
+.demo-btn { background: none; border: none; padding: 0; cursor: pointer; }
+.gym-row { gap: 10px; }
+.ex-link { background: none; border: none; padding: 0; color: var(--accent); font-weight: 600; cursor: pointer; text-align: left; }
+.chat-msg { width: 100%; min-height: 120px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
+.notebook { font-size: 14.5px; max-width: 75ch; }
+.notebook h4 { color: var(--ink); font-size: 16px; margin-top: 14px; }

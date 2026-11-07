@@ -6,9 +6,10 @@ import { getSettings, units, fmtDuration, fmtNum, rideLocalDate, rideLocalTime, 
 import { MMP_DURATIONS } from '../metrics/compute.js';
 import { aggregate, ridesInRange } from '../metrics/aggregate.js';
 import { CADENCE_BUCKETS } from '../metrics/zones.js';
-import { askCoach, rideAnalysisPrompt, riderContext, aiConfigured } from '../ai/ai.js';
+import { askCoach, rideAnalysisPrompt, riderContext, aiConfigured, chatMessageForRide, syncReady } from '../ai/ai.js';
+import { pushRide, pullCoachNotes } from '../sync/github.js';
 import { buildFocus } from '../coach/focus.js';
-import { fuellingPlan } from '../modules/extras.js';
+import { fuelingPlan } from '../modules/extras.js';
 
 const MMP_KEY = [5, 60, 300, 1200, 3600];
 
@@ -24,7 +25,7 @@ registerView('ride', (root, { id }) => {
     h('button', { class: 'icon-btn', onClick: () => history.length > 1 ? history.back() : navigate('rides'), 'aria-label': 'Back' }, icon('back')),
     h('div', { class: 'ride-title' }, h('h1', { contentEditable: 'true', spellcheck: 'false', onBlur: (e) => { const name = e.target.textContent.trim(); if (name && name !== r.name) updateRide(r.id, { name }); } }, r.name),
       h('div', { class: 'muted' }, `${fmtDate(rideLocalDate(r), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} · ${rideLocalTime(r)} · ${r.deviceName || r.source}${r.bikeName ? ` · ${r.bikeName}` : ''}`, r.indoor ? pill('indoor') : null)),
-    h('div', { class: 'page-actions' }, button('Coach', () => analyzeWithAi(r), { iconName: 'spark', small: true }), button('More', () => rideMenu(r), { small: true })),
+    h('div', { class: 'page-actions' }, button('Analyze with Claude', () => askClaude(r), { iconName: 'spark', small: true, primary: true }), button('More', () => rideMenu(r), { small: true })),
   );
 
   // ---- display panel ----
@@ -59,7 +60,7 @@ registerView('ride', (root, { id }) => {
   };
   db.get('streams', r.id).then(st => {
     if (!st) return;
-    if (st.streams.lat && !r.virtual) { mapPanel.appendChild(h('div', { class: 'panel-head' }, h('h2', null, 'Route'), h('p', { class: 'panel-sub' }, power ? 'Coloured by power zone' : 'Coloured by heart-rate zone'))); const body = h('div', { class: 'panel-body' }); mapPanel.appendChild(body); routeMap(body, st.streams, { colorBy: power ? 'power' : 'hr', zones: power ? r.powerZones : r.hrZones }); }
+    if (st.streams.lat && !r.virtual) { mapPanel.appendChild(h('div', { class: 'panel-head' }, h('h2', null, 'Route'), h('p', { class: 'panel-sub' }, power ? 'Colored by power zone' : 'Colored by heart-rate zone'))); const body = h('div', { class: 'panel-body' }); mapPanel.appendChild(body); routeMap(body, st.streams, { colorBy: power ? 'power' : 'hr', zones: power ? r.powerZones : r.hrZones }); }
     else mapPanel.remove();
     drawStreams();
   });
@@ -68,7 +69,7 @@ registerView('ride', (root, { id }) => {
   const zonePanel = section('Time in zones', h('div', { class: 'grid-2' },
     power ? h('div', null, h('h3', null, `Power zones (FTP ${r.paramsUsed.ftp} W)`), zoneBars(r.powerZones, r.tizPower, { fmtTime: fmtDuration }), h('p', { class: 'small muted' }, `${fmtDuration(r.coastingSec, { short: true })} coasting (${r.coastingPct.toFixed(0)}%) not counted — matches your Magene app. Change in Settings → Zones.`)) : null,
     r.tizHr ? h('div', null, h('h3', null, `Heart-rate zones (${s.zones.hrModel === 'pctmax' ? `max ${r.paramsUsed.hrmax}` : `LTHR ${r.paramsUsed.lthr}`})`), zoneBars(r.hrZones, r.tizHr, { fmtTime: fmtDuration, unit: 'bpm' })) : null,
-  ), { sub: r.tiz3 ? `Easy / moderate / hard: ${r.tiz3.map(v => (v / Math.max(1, r.tiz3.reduce((a, b) => a + b, 0)) * 100).toFixed(0)).join(' / ')} % → ${r.distributionClass}${Number.isFinite(r.polarizationIndex) ? ` (polarisation index ${r.polarizationIndex.toFixed(2)})` : ''}` : null });
+  ), { sub: r.tiz3 ? `Easy / moderate / hard: ${r.tiz3.map(v => (v / Math.max(1, r.tiz3.reduce((a, b) => a + b, 0)) * 100).toFixed(0)).join(' / ')} % → ${r.distributionClass}${Number.isFinite(r.polarizationIndex) ? ` (polarization index ${r.polarizationIndex.toFixed(2)})` : ''}` : null });
 
   // ---- power curve ----
   let curvePanel = null;
@@ -92,7 +93,7 @@ registerView('ride', (root, { id }) => {
         tile(`${r.psLeft?.toFixed(1) ?? '–'}% · ${r.psRight?.toFixed(1) ?? '–'}%`, 'Pedal smoothness L · R', 'typical 15–35%'),
         tile(fmtDuration(r.standingSec), 'Standing', `${r.standCount}× · seated ${fmtDuration(r.timerSec - r.standingSec, { short: true })}`),
       ),
-      r.powerPhase ? h('div', { class: 'phases' }, powerPhaseDonut(r.powerPhase.left, { label: 'Left', color: '#2E9E4F' }), powerPhaseDonut(r.powerPhase.right, { label: 'Right', color: '#1A63C9' }), h('div', { class: 'phase-legend' }, h('p', null, h('strong', null, 'Power phase'), ' — crank angles where you push (lighter arc) and where most power lands (darker arc). Starts near 335° and ends near 190° are typical; a peak phase centred around 90° means you push through the front of the stroke.'))) : null,
+      r.powerPhase ? h('div', { class: 'phases' }, powerPhaseDonut(r.powerPhase.left, { label: 'Left', color: '#2E9E4F' }), powerPhaseDonut(r.powerPhase.right, { label: 'Right', color: '#1A63C9' }), h('div', { class: 'phase-legend' }, h('p', null, h('strong', null, 'Power phase'), ' — crank angles where you push (lighter arc) and where most power lands (darker arc). Starts near 335° and ends near 190° are typical; a peak phase centered around 90° means you push through the front of the stroke.'))) : null,
       table(['', 'Seated', 'Standing'], [['Avg power', `${fmtNum(r.avgPowerSeated)} W`, `${fmtNum(r.avgPowerStanding)} W`], ['Avg cadence', `${fmtNum(r.avgCadSeated)} rpm`, `${fmtNum(r.avgCadStanding)} rpm`], ['Time', fmtDuration(r.timerSec - r.standingSec), fmtDuration(r.standingSec)]]),
     ));
   }
@@ -122,9 +123,9 @@ registerView('ride', (root, { id }) => {
   let lapPanel = null;
   if (r.laps?.length > 1) lapPanel = section('Laps', table(['Lap', 'Time', 'Distance', 'Avg speed', 'Avg HR', power ? 'Avg W' : '', power ? 'NP' : '', 'Climb'].filter(Boolean), r.laps.map(l => [l.index, fmtDuration(l.timer), units.distStr(l.distance, 2), units.speedStr(l.avgSpeed), fmtNum(l.avgHr), power ? fmtNum(l.avgPower) : null, power ? fmtNum(l.np) : null, units.elevStr(l.ascent)].filter(x => x !== null))));
 
-  // ---- fuelling & conditions ----
-  const fuel = fuellingPlan({ hours: r.timerSec / 3600, intensityIf: power ? r.if : 0.7, weightKg: wkg, tempF: Number.isFinite(r.avgTemp) ? r.avgTemp * 9 / 5 + 32 : 60 });
-  const condPanel = section('Conditions & fuelling', kv([
+  // ---- fueling & conditions ----
+  const fuel = fuelingPlan({ hours: r.timerSec / 3600, intensityIf: power ? r.if : 0.7, weightKg: wkg, tempF: Number.isFinite(r.avgTemp) ? r.avgTemp * 9 / 5 + 32 : 60 });
+  const condPanel = section('Conditions & fueling', kv([
     ['Temperature', Number.isFinite(r.avgTemp) ? `${units.tempStr(r.minTemp)} – ${units.tempStr(r.maxTemp)} (avg ${units.tempStr(r.avgTemp)})` : '–'],
     ['Elapsed / moving', `${fmtDuration(r.elapsedSec)} / ${fmtDuration(r.timerSec)} (${fmtDuration(r.elapsedSec - r.timerSec, { short: true })} stopped)`],
     ['Energy', `${fmtNum(r.kcal)} kcal${power ? ' from power' : ' (device estimate)'}`],
@@ -138,8 +139,11 @@ registerView('ride', (root, { id }) => {
   const notePanel = section('Your notes', h('div', { class: 'stack' }, field('Perceived effort', rpeSel), field('Notes', notesArea)));
 
   // ---- AI analyses ----
-  const aiPanel = section('Coach analysis', h('div', { class: 'ai-list' }), { actions: button('Analyse this ride', () => analyzeWithAi(r), { primary: true, small: true, iconName: 'spark' }) });
-  db.getAll('ai').then(all => { const mine = all.filter(a => a.rideId === r.id).sort((a, b) => b.ts.localeCompare(a.ts)); const box = aiPanel.querySelector('.ai-list'); if (!mine.length) box.appendChild(h('p', { class: 'muted small' }, aiConfigured() ? 'No analysis yet.' : 'Add an API key in Settings → AI coach to enable analysis.')); for (const a of mine) box.appendChild(renderAnalysis(a)); });
+  const aiPanel = section('Coach analysis', h('div', { class: 'ai-list' }), { actions: h('div', { class: 'row' },
+    button('Analyze with Claude', () => askClaude(r), { primary: true, small: true, iconName: 'spark' }),
+    syncReady() ? button('Get saved analysis', async () => { try { const n = await pullCoachNotes(); toast(n ? `${n} new note${n > 1 ? 's' : ''} from Claude` : 'No new notes yet'); navigate(`ride/${r.id}`); } catch (e) { toast(e.message, { error: true, ms: 8000 }); } }, { small: true, iconName: 'sync' }) : null,
+    aiConfigured() ? button('Analyze with API key', () => analyzeWithAi(r), { small: true }) : null) });
+  db.getAll('ai').then(all => { const mine = all.filter(a => a.rideId === r.id).sort((a, b) => b.ts.localeCompare(a.ts)); const box = aiPanel.querySelector('.ai-list'); if (!mine.length) box.appendChild(h('p', { class: 'muted small' }, syncReady() ? 'No analysis yet. Tap Analyze with Claude, paste the message in the chat, then Get saved analysis here.' : 'No analysis yet. Tap Analyze with Claude to send this ride to your coaching chat.')); for (const a of mine) box.appendChild(renderAnalysis(a)); });
 
   root.append(head, disp, ...notes, mapPanel, streamPanel, zonePanel, curvePanel, dynPanel, cadPanel, effPanel, climbPanel, hrCurve, lapPanel, condPanel, notePanel, aiPanel);
   return () => { if (chartHandle) chartHandle.destroy(); };
@@ -156,24 +160,52 @@ export function renderAnalysis(a) {
       p.concerns?.length ? h('div', null, h('h4', null, 'Concerns'), h('ul', null, p.concerns.map(x => h('li', null, x)))) : null,
       p.focusNext14Days ? h('p', null, h('strong', null, 'Next 14 days: '), p.focusNext14Days) : null,
       p.planAdjustments?.length ? h('div', null, h('h4', null, 'Suggested plan changes'), h('ul', null, p.planAdjustments.map(x => h('li', null, h('strong', null, x.date), ` — ${x.change} `, h('span', { class: 'muted' }, `(${x.reason})`))))) : null,
-      p.fuellingNote ? h('p', { class: 'small' }, h('strong', null, 'Fuelling: '), p.fuellingNote) : null,
-      h('p', { class: 'small muted' }, `Confidence: ${p.confidence}`));
+      p.fuelingNote ? h('p', { class: 'small' }, h('strong', null, 'Fueling: '), p.fuelingNote) : null,
+      p.body ? h('details', null, h('summary', null, 'Full analysis'), h('div', { class: 'md' }, ...markdownish(p.body))) : null,
+      p.confidence ? h('p', { class: 'small muted' }, `Confidence: ${p.confidence}`) : null);
   } else box.appendChild(h('div', { class: 'md' }, ...markdownish(a.output || '')));
   return box;
 }
 export function markdownish(text) {
-  const out = []; let list = null;
+  const out = []; let list = null, listTag = '', tbl = null;
   for (const line of String(text).split('\n')) {
     const l = line.trim();
-    if (/^[-*•] /.test(l)) { if (!list) { list = h('ul'); out.push(list); } list.appendChild(h('li', { html: inline(l.slice(2)) })); continue; }
+    if (/^\|.*\|$/.test(l)) {
+      const cells = l.slice(1, -1).split('|').map(c => c.trim());
+      if (cells.every(c => /^:?-+:?$/.test(c))) continue;
+      if (!tbl) { tbl = h('table', { class: 'table' }); out.push(h('div', { class: 'table-wrap' }, tbl)); tbl.appendChild(h('tr', null, cells.map(c => h('th', { html: inline(c) })))); }
+      else tbl.appendChild(h('tr', null, cells.map(c => h('td', { html: inline(c) }))));
+      continue;
+    }
+    tbl = null;
+    const ul = /^[-*•] /.test(l), ol = /^\d+\. /.test(l);
+    if (ul || ol) { const tag = ul ? 'ul' : 'ol'; if (!list || listTag !== tag) { list = h(tag); listTag = tag; out.push(list); } list.appendChild(h('li', { html: inline(l.replace(/^([-*•]|\d+\.) /, '')) })); continue; }
     list = null;
     if (!l) continue;
-    if (/^#{1,3} /.test(l)) out.push(h('h4', { html: inline(l.replace(/^#+ /, '')) }));
+    if (/^#{1,4} /.test(l)) out.push(h('h4', { html: inline(l.replace(/^#+ /, '')) }));
     else out.push(h('p', { html: inline(l) }));
   }
   return out;
 }
-function inline(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>'); }
+function inline(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>'); }
+
+/** Copy a message for the coaching chat (ride id when synced, full data otherwise) and offer the chat link. */
+function askClaude(r) {
+  const s = getSettings();
+  const msg = chatMessageForRide(r, state.rides, s);
+  let copied = false;
+  try { navigator.clipboard.writeText(msg).then(() => { copied = true; status.textContent = 'Copied. Open the chat and paste it.'; }).catch(() => { status.textContent = 'Copy failed — select the text above and copy it.'; ta.select(); }); } catch { /* handled by the textarea */ }
+  if (syncReady(s) && !(s.sync.pushed || {})[r.id]) pushRide(r).then(() => toast('Ride backed up for Claude')).catch(e => toast(`Backup failed: ${e.message}`, { error: true, ms: 8000 }));
+  const ta = h('textarea', { class: 'input chat-msg', readOnly: true }, msg);
+  const status = h('p', { class: 'small muted' }, 'Copying…');
+  const link = h('a', { class: 'btn primary', href: s.coach?.chatUrl || 'https://claude.ai', target: '_blank', rel: 'noopener' }, 'Open Claude chat');
+  modal('Analyze with Claude', h('div', { class: 'stack' },
+    h('p', null, syncReady(s) ? 'This message points Claude at the ride in your backup repo, where your full history is.' : 'This message carries the ride and your ride history, because backup sync is not set up yet.'),
+    ta, status, h('div', { class: 'row' }, link),
+    h('p', { class: 'small muted' }, syncReady(s) ? 'Claude saves the analysis to the repo. Come back and tap Get saved analysis.' : 'Paste the analysis back as a ride note if you want to keep it here.'),
+  ));
+  void copied;
+}
 
 async function analyzeWithAi(r) {
   if (!aiConfigured()) { toast('Add an API key in Settings → AI coach first', { error: true }); navigate('settings'); return; }

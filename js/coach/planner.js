@@ -1,4 +1,4 @@
-// RideHQ — two-week plan generator: periodised toward the goal event, bike + gym + mobility, weather-aware.
+// RideHQ — two-week plan generator: periodized toward the goal event, bike + gym + mobility, weather-aware.
 import { buildWorkout, plannedTss, workoutById } from './workouts.js';
 import { SESSIONS, MOBILITY } from './gym.js';
 import { addDays, daysBetween, dowOf, todayIso, DAY_NAMES } from '../settings.js';
@@ -160,7 +160,7 @@ function planSummary(phase, weeksToEvent, days, settings) {
   const hrs = bike.reduce((a, s) => a + s.durationMin, 0) / 60;
   const gym = days.flatMap(d => d.sessions.filter(s => s.kind === 'gym')).length;
   const ev = settings.goals.event;
-  return `${phase.label}. ${weeksToEvent != null ? `${weeksToEvent} weeks to ${ev.name}. ` : ''}${bike.length} rides (${hrs.toFixed(1)} h), ${gym} gym sessions over 14 days. ${days.some(d => d.recovery) ? 'Includes a recovery week — honour it.' : 'Loading weeks: build steadily, sleep well.'}`;
+  return `${phase.label}. ${weeksToEvent != null ? `${weeksToEvent} weeks to ${ev.name}. ` : ''}${bike.length} rides (${hrs.toFixed(1)} h), ${gym} gym sessions over 14 days. ${days.some(d => d.recovery) ? 'Includes a recovery week — honor it.' : 'Loading weeks: build steadily, sleep well.'}`;
 }
 
 /** Match completed rides to planned bike sessions by date (first unmatched bike session that day). */

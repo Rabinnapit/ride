@@ -8,6 +8,7 @@ import { buildFocus } from '../coach/focus.js';
 import { generatePlan, planToIcs, matchRidesToPlan } from '../coach/planner.js';
 import { WORKOUTS, CATEGORY, buildWorkout, describeSegments, plannedTss, toZwo, toMrc } from '../coach/workouts.js';
 import { weatherIcon, rideCall } from '../modules/extras.js';
+import { demoThumb, exerciseLink } from '../ui/demo.js';
 
 let tab = 'plan';
 
@@ -105,7 +106,7 @@ function sessionDetail(x, d, s, plan) {
     body.appendChild(h('div', { class: 'row' }, button('Zwift .zwo', () => downloadFile(`${slug(x.title)}.zwo`, toZwo(w, { ftp }), 'application/xml'), { small: true, iconName: 'download' }), button('.mrc (ERG)', () => downloadFile(`${slug(x.title)}.mrc`, toMrc(w), 'text/plain'), { small: true, iconName: 'download' })));
     if (x.linkedRideId) body.appendChild(h('p', null, h('a', { href: `#/ride/${x.linkedRideId}`, onClick: () => m.close() }, `Completed — open the ride (${x.actualMin} min, load ${fmtNum(x.actualTss)})`)));
   }
-  if (x.items) body.appendChild(table(['Exercise', 'Sets × reps', 'Cue'], x.items.map(i => [h('b', null, i.name), `${i.sets} × ${i.reps}${i.note ? ` (${i.note})` : ''}`, h('span', { class: 'small muted' }, i.cue)])));
+  if (x.items) body.appendChild(h('div', { class: 'stack' }, x.items.map(i => h('div', { class: 'session gym-row' }, demoThumb(i.key, { sets: i.sets, reps: i.reps, note: i.note }), h('span', { class: 'session-text' }, exerciseLink(i.key, i.name, { sets: i.sets, reps: i.reps, note: i.note }), h('small', null, `${i.sets} × ${i.reps}${i.note ? ` (${i.note})` : ''} — ${i.cue}`))))));
   if (x.kind === 'gym') body.appendChild(button('Log this session in Gym', () => { m.close(); navigate(`gym/${d.date}`); }, { primary: true, small: true }));
   const actions = [];
   if (x.kind !== 'rest' && x.kind !== 'event') actions.push({ label: x.done ? 'Mark not done' : 'Mark done', primary: !x.done, onClick: async () => { x.done = !x.done; if (!x.done) x.linkedRideId = null; await savePlan(plan); navigate('train'); } });

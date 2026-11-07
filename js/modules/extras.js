@@ -1,4 +1,4 @@
-// RideHQ — weather (Open-Meteo), fuelling maths, equipment/maintenance rules, backup/restore helpers.
+// RideHQ — weather (Open-Meteo), fueling maths, equipment/maintenance rules, backup/restore helpers.
 import { db } from '../db.js';
 import { getSettings, replaceSettings, todayIso, addDays } from '../settings.js';
 
@@ -39,8 +39,8 @@ export function rideCall(day, settings) {
   return { ok: false, label: trainer ? 'Indoor' : 'Gym / rest', detail: t < min ? `${Math.round(t)}°F — below your ${min}°F cutoff` : `${day.precipPct}% rain` };
 }
 
-// ---------- fuelling ----------
-export function fuellingPlan({ hours, intensityIf = 0.7, weightKg = 75, tempF = 60 }) {
+// ---------- fueling ----------
+export function fuelingPlan({ hours, intensityIf = 0.7, weightKg = 75, tempF = 60 }) {
   let carbsPerHour = hours < 1 ? 0 : hours < 2.5 ? (intensityIf > 0.8 ? 60 : 45) : (intensityIf > 0.75 ? 90 : 75);
   if (hours >= 1 && hours < 2.5 && intensityIf <= 0.8) carbsPerHour = 40;
   const fluidPerHour = tempF > 80 ? 800 : tempF > 65 ? 650 : 500;
@@ -54,7 +54,7 @@ export function fuellingPlan({ hours, intensityIf = 0.7, weightKg = 75, tempF = 
     kcalEstimate,
   };
 }
-export function eventFuelling(ev, weightKg, ftp) {
+export function eventFueling(ev, weightKg, ftp) {
   const perDayKm = ev.distanceKm / ev.days;
   const hours = perDayKm / 20; // conservative touring speed
   const kjPerDay = Math.round(hours * 3600 * (ftp || 150) * 0.62 / 1000);
@@ -65,8 +65,8 @@ export function eventFuelling(ev, weightKg, ftp) {
 export const COMPONENT_TYPES = [
   { key: 'chain', label: 'Chain', km: 3500, note: 'Replace at 0.5% stretch (11/12-speed). Lube every 300–500 km and after rain.' },
   { key: 'cassette', label: 'Cassette', km: 10000, note: 'Usually every 2–3 chains; replace if a new chain skips.' },
-  { key: 'tire_rear', label: 'Rear tyre', km: 4000, note: 'Wear indicator / squared-off profile / cuts.' },
-  { key: 'tire_front', label: 'Front tyre', km: 6500, note: 'Lasts longer than the rear; swap when the rear is new.' },
+  { key: 'tire_rear', label: 'Rear tire', km: 4000, note: 'Wear indicator / squared-off profile / cuts.' },
+  { key: 'tire_front', label: 'Front tire', km: 6500, note: 'Lasts longer than the rear; swap when the rear is new.' },
   { key: 'pads', label: 'Brake pads', km: 2500, note: 'Disc: < 0.5 mm friction material. Rim: wear line.' },
   { key: 'bartape', label: 'Bar tape', km: 6000, note: 'Replace when slippery or torn — grip matters on long days.' },
   { key: 'cables', label: 'Cables / housing', km: 5000, note: 'Sluggish shifting = replace. Yearly for mechanical groupsets.' },
