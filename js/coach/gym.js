@@ -33,6 +33,11 @@ export const EXERCISES = {
   shrug: { name: 'Dumbbell shrug', group: 'upper', cue: 'Straight up; pause; slow down.' },
   curl: { name: 'Biceps curl (hammer)', group: 'upper', cue: 'Elbows still; control the lowering.' },
   wrist: { name: 'Wrist curls / plate pinch', group: 'upper', cue: 'Forearm endurance for long days on the hoods and drops.' },
+  bandfly: { name: 'Band reverse fly', group: 'upper', cue: 'Arms straight at chest height; pull the band apart until your arms are wide; squeeze the shoulder blades.' },
+  hipadd: { name: 'Cable hip adduction', group: 'lower', cue: 'Ankle strap on the inside leg; sweep it across your body slowly; keep the torso still.' },
+  hipraise: { name: 'Bent-knee hip raise', group: 'core', cue: 'Lying, knees bent; curl the hips off the floor with your lower abs; lower slowly, no swing.' },
+  abroll: { name: 'Ab rollout (kneeling)', group: 'core', cue: 'Ribs down, glutes tight; roll out only as far as your back stays flat.' },
+  goodmorning: { name: 'Good morning', group: 'lower', cue: 'Light bar on the upper back; hinge with a flat back and soft knees.' },
   // Core & aero position
   aerohold: { name: 'Aero hold (forearm plank, hips back)', group: 'core', cue: 'Forearms on a bench, hips back like on the hoods; hold 60–90 s with a neutral neck.' },
   plank: { name: 'Front plank', group: 'core', cue: 'Ribs down; glutes on; breathe.' },
@@ -67,15 +72,15 @@ const ex = (key, sets, reps, note = '') => ({ key, name: EXERCISES[key].name, gr
 export const SESSIONS = {
   aa: {
     A: { title: 'Legs & core — adaptation', items: [ex('gobletsquat', 3, '12–15'), ex('rdl', 3, '12'), ex('split', 3, '10 / leg'), ex('stepup', 2, '10 / leg'), ex('calf', 3, '15'), ex('bridge', 2, '15'), ex('deadbug', 3, '10 / side'), ex('birddog', 3, '8 / side'), ex('aerohold', 3, '45 s')] },
-    B: { title: 'Upper body & aero position — adaptation', items: [ex('pushup', 3, '12–15'), ex('cablerow', 3, '12'), ex('pulldown', 3, '12'), ex('ohp', 3, '10'), ex('pushdown', 3, '15'), ex('facepull', 3, '15'), ex('latraise', 2, '15'), ex('farmer', 3, '40 m'), ex('pallof', 3, '10 / side'), ex('sideplank', 3, '40 s / side'), ex('aerohold', 3, '60 s')] },
+    B: { title: 'Upper body & aero position — adaptation', items: [ex('pushup', 3, '12–15'), ex('cablerow', 3, '12'), ex('pulldown', 3, '12'), ex('ohp', 3, '10'), ex('pushdown', 3, '15'), ex('bandfly', 3, '15'), ex('latraise', 2, '15'), ex('farmer', 3, '40 m'), ex('pallof', 3, '10 / side'), ex('sideplank', 3, '40 s / side'), ex('aerohold', 3, '60 s')] },
   },
   strength: {
-    A: { title: 'Legs — max strength', items: [ex('backsquat', 4, '4–6', 'heavy; 2–3 min rest'), ex('trapbar', 3, '5', 'heavy'), ex('split', 3, '6 / leg', 'dumbbells'), ex('hipthrust', 3, '8'), ex('calf', 3, '8', 'heavy, slow'), ex('copenhagen', 3, '30 s / side'), ex('pallof', 3, '10 / side'), ex('aerohold', 3, '75 s')] },
-    B: { title: 'Upper body & aero position — strength', items: [ex('cgbench', 4, '5', 'triceps focus'), ex('row', 4, '6'), ex('pulldown', 3, '6–8'), ex('ohp', 3, '6'), ex('dips', 3, '8–10'), ex('ohtri', 3, '10'), ex('facepull', 3, '15'), ex('farmer', 3, '40 m', 'heavy'), ex('kneeraise', 3, '10'), ex('plank', 3, '60 s'), ex('aerohold', 3, '90 s')] },
+    A: { title: 'Legs — max strength', items: [ex('backsquat', 4, '4–6', 'heavy; 2–3 min rest'), ex('trapbar', 3, '5', 'heavy'), ex('split', 3, '6 / leg', 'dumbbells'), ex('hipthrust', 3, '8'), ex('calf', 3, '8', 'heavy, slow'), ex('hipadd', 3, '12 / side'), ex('pallof', 3, '10 / side'), ex('aerohold', 3, '75 s')] },
+    B: { title: 'Upper body & aero position — strength', items: [ex('cgbench', 4, '5', 'triceps focus'), ex('row', 4, '6'), ex('pulldown', 3, '6–8'), ex('ohp', 3, '6'), ex('dips', 3, '8–10'), ex('ohtri', 3, '10'), ex('bandfly', 3, '15'), ex('farmer', 3, '40 m', 'heavy'), ex('hipraise', 3, '12'), ex('plank', 3, '60 s'), ex('aerohold', 3, '90 s')] },
   },
   maintain: {
-    C: { title: 'Full body — maintenance', items: [ex('backsquat', 3, '4', 'heavy but crisp'), ex('rdl', 3, '5'), ex('cgbench', 3, '6'), ex('row', 3, '6'), ex('pushdown', 2, '12'), ex('facepull', 2, '15'), ex('pallof', 2, '10 / side'), ex('aerohold', 3, '90 s')] },
-    B: { title: 'Upper body & aero — maintenance', items: [ex('cgbench', 3, '6'), ex('cablerow', 3, '8'), ex('ohp', 3, '6'), ex('dips', 3, '8'), ex('facepull', 3, '15'), ex('farmer', 3, '40 m'), ex('sideplank', 3, '45 s / side'), ex('aerohold', 3, '90 s')] },
+    C: { title: 'Full body — maintenance', items: [ex('backsquat', 3, '4', 'heavy but crisp'), ex('rdl', 3, '5'), ex('cgbench', 3, '6'), ex('row', 3, '6'), ex('pushdown', 2, '12'), ex('bandfly', 2, '15'), ex('pallof', 2, '10 / side'), ex('aerohold', 3, '90 s')] },
+    B: { title: 'Upper body & aero — maintenance', items: [ex('cgbench', 3, '6'), ex('cablerow', 3, '8'), ex('ohp', 3, '6'), ex('dips', 3, '8'), ex('bandfly', 3, '15'), ex('farmer', 3, '40 m'), ex('sideplank', 3, '45 s / side'), ex('aerohold', 3, '90 s')] },
   },
   taper: {
     C: { title: 'Full body — taper', items: [ex('gobletsquat', 2, '5', 'light'), ex('rdl', 2, '5', 'light'), ex('pushup', 2, '10'), ex('cablerow', 2, '8'), ex('aerohold', 2, '60 s'), ex('deadbug', 2, '8 / side')] },

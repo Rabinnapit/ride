@@ -55,6 +55,7 @@ const ICONS = {
   warn: '<path d="M12 3 2 20h20z"/><path d="M12 9v5M12 17h.01"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  play: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/>',
 };
 export function icon(name, cls = '') {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
