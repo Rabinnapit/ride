@@ -1,4 +1,4 @@
-// RideHQ — Gym: log sets against the planned session, track estimated 1RM, see progression.
+// RiderHQ — Gym: log sets against the planned session, track estimated 1RM, see progression.
 import { state, registerView, navigate, db, refreshData } from '../app.js';
 import { h, icon, section, empty, button, table, input, field, toast, kv, modal, tile } from '../ui/dom.js';
 import { lineChart } from '../ui/charts.js';

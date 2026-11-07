@@ -1,4 +1,4 @@
-// RideHQ — weather (Open-Meteo), fueling maths, equipment/maintenance rules, backup/restore helpers.
+// RiderHQ — weather (Open-Meteo), fueling maths, equipment/maintenance rules, backup/restore helpers.
 import { db } from '../db.js';
 import { getSettings, replaceSettings, todayIso, addDays } from '../settings.js';
 
@@ -92,12 +92,12 @@ export const b64ToBuf = (b) => { const bin = atob(b); const out = new Uint8Array
 
 export async function exportBackup({ includeFit = false } = {}) {
   const rides = (await db.getAll('rides')).map(({ streams, ...r }) => r);
-  const out = { app: 'RideHQ', version: 1, exportedAt: new Date().toISOString(), settings: getSettings(), rides, wellness: await db.getAll('wellness'), plans: await db.getAll('plans'), gymlog: await db.getAll('gymlog'), equipment: await db.getAll('equipment'), planlog: await db.getAll('planlog'), ai: await db.getAll('ai') };
+  const out = { app: 'RiderHQ', version: 1, exportedAt: new Date().toISOString(), settings: getSettings(), rides, wellness: await db.getAll('wellness'), plans: await db.getAll('plans'), gymlog: await db.getAll('gymlog'), equipment: await db.getAll('equipment'), planlog: await db.getAll('planlog'), ai: await db.getAll('ai') };
   if (includeFit) { out.raw = []; for (const r of rides) { const raw = await db.get('raw', r.id); if (raw) out.raw.push({ id: r.id, fileName: raw.fileName, b64: bufToB64(raw.buffer) }); } }
   return out;
 }
 export async function importBackup(obj, { importRide }) {
-  if (!obj || obj.app !== 'RideHQ') throw new Error('Not a RideHQ backup file');
+  if (!obj || !['RiderHQ', 'RideHQ'].includes(obj.app)) throw new Error('Not a RiderHQ backup file');
   if (obj.settings) await replaceSettings(obj.settings);
   if (Array.isArray(obj.overrides)) { const cur = (await db.getSetting('overrides', [])) || []; const merged = [...cur.filter(c => !obj.overrides.some(o => o.startUtc === c.startUtc)), ...obj.overrides]; await db.setSetting('overrides', merged); }
   for (const store of ['wellness', 'plans', 'gymlog', 'equipment', 'planlog', 'ai']) if (Array.isArray(obj[store]) && obj[store].length) await db.bulkPut(store, obj[store]);

@@ -1,4 +1,4 @@
-// RideHQ — More: menu, AI coach conversation & weekly review, equipment/maintenance, fueling.
+// RiderHQ — More: menu, AI coach conversation & weekly review, equipment/maintenance, fueling.
 import { state, registerView, navigate, db, refreshData } from '../app.js';
 import { h, icon, section, empty, button, table, input, field, toast, tile, select, kv, modal, confirmDialog, progress, pill } from '../ui/dom.js';
 import { renderAnalysis, markdownish } from './ride.js';
@@ -10,6 +10,7 @@ import { pullCoachNotes } from '../sync/github.js';
 import { GLOSSARY } from '../ui/glossary.js';
 import { COMPONENT_TYPES, componentStatus, fuelingPlan, eventFueling } from '../modules/extras.js';
 
+import { fuelLibraryPanel } from './fuel-ui.js';
 registerView('more', (root) => {
   const items = [
     ['gym', 'Gym', 'Log sets, estimated 1RM, periodization', 'gym'], ['wellness', 'Wellness', 'Sleep, resting HR, HRV, readiness', 'heart'],
@@ -113,7 +114,7 @@ registerView('nutrition', (root) => {
   draw();
   const ev = s.goals.event; let evPanel = null;
   if (ev?.distanceKm) { const e = eventFueling(ev, weightKg, ftp); evPanel = section(`${ev.name} — fueling plan`, h('div', null, h('div', { class: 'tiles compact' }, tile(`${e.perDayKm.toFixed(0)} km`, 'Per day'), tile(`~${e.hours.toFixed(1)} h`, 'Riding per day', 'at ~20 km/h touring pace'), tile(`${e.carbsOnBike} g`, 'Carbs on the bike / day'), tile(`~${e.kjPerDay.toLocaleString()} kcal`, 'Riding energy / day')), kv([['Two days before', e.carbLoad], ['Every tour day', e.daily], ['Shopping list per day', `${Math.ceil(e.carbsOnBike / 25)} gels or rice cakes (25 g each), 2 bottles with 40 g carb mix, salt tabs, one real meal at the halfway stamp.`]]))); }
-  root.append(h('div', { class: 'page-head' }, h('h1', null, 'Fueling')), calc, evPanel);
+  root.append(h('div', { class: 'page-head' }, h('h1', null, 'Fueling')), fuelLibraryPanel(), calc, evPanel);
 });
 export { fmtDuration, fmtNum, rideLocalDate, fmtDate, markdownish };
 
@@ -129,7 +130,7 @@ registerView('glossary', (root) => {
   };
   draw();
   root.append(h('div', { class: 'page-head' }, h('h1', null, 'What the numbers mean')),
-    h('p', { class: 'lead' }, 'Every term in RideHQ in plain English. Tap the small ? next to any number in the app to see its entry.'),
+    h('p', { class: 'lead' }, 'Every term in RiderHQ in plain English. Tap the small ? next to any number in the app to see its entry.'),
     input({ type: 'search', placeholder: 'Search, e.g. TSS, form, cadence', id: 'gloss-q', onInput: e => { q = e.target.value.trim().toLowerCase(); draw(); } }),
     list);
 });

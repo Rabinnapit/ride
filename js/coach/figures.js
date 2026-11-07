@@ -1,4 +1,4 @@
-// RideHQ — exercise demos: two illustrated frames (start / end of one rep) cross-faded into a loop,
+// RiderHQ — exercise demos: two illustrated frames (start / end of one rep) cross-faded into a loop,
 // plus a link to real-life videos for every exercise.
 // Illustrations: Everkinetic open data (Greg Priday), CC BY-SA 4.0 — see img/ex/NOTICE.md.
 

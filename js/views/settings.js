@@ -1,4 +1,4 @@
-// RideHQ — Settings (profile, FTP history, zones, units, event, schedule, AI, sync, backup, data) and How-to.
+// RiderHQ — Settings (profile, FTP history, zones, units, event, schedule, AI, sync, backup, data) and How-to.
 import { state, registerView, navigate, db, refreshData, recomputeAll, recomputePmc } from '../app.js';
 import { h, icon, section, button, table, input, field, toast, select, kv, modal, confirmDialog, downloadFile, pill } from '../ui/dom.js';
 import { getSettings, saveSettings, units, todayIso, fmtDate, hrmaxEstimate, ageAt, DAY_NAMES, currentFtp } from '../settings.js';
@@ -133,8 +133,8 @@ registerView('settings', (root) => {
   const fileIn = h('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' }, onChange: async e => { const f = e.target.files[0]; if (!f) return; try { const obj = JSON.parse(await f.text()); const n = await importBackup(obj, { importRide: (buf, name) => importFile(buf, name, { silent: true }) }); await recomputeAll(); toast(`Backup restored (${n} rides)`); navigate('settings'); } catch (err) { toast(err.message, { error: true, ms: 8000 }); } e.target.value = ''; } });
   const dataPanel = section('Backup file & data', h('div', { class: 'stack' },
     h('div', { class: 'row' },
-      button('Download backup (summaries)', async () => downloadFile(`ridehq-backup-${todayIso()}.json`, JSON.stringify(await exportBackup()), 'application/json'), { iconName: 'download' }),
-      button('Download full backup (with .fit files)', async () => downloadFile(`ridehq-full-${todayIso()}.json`, JSON.stringify(await exportBackup({ includeFit: true })), 'application/json'), { iconName: 'download' }),
+      button('Download backup (summaries)', async () => downloadFile(`riderhq-backup-${todayIso()}.json`, JSON.stringify(await exportBackup()), 'application/json'), { iconName: 'download' }),
+      button('Download full backup (with .fit files)', async () => downloadFile(`riderhq-full-${todayIso()}.json`, JSON.stringify(await exportBackup({ includeFit: true })), 'application/json'), { iconName: 'download' }),
       button('Restore from backup file', () => fileIn.click(), { iconName: 'upload' }), fileIn,
     ),
     h('div', { class: 'row' },
@@ -165,14 +165,14 @@ registerView('howto', (root) => {
   const li = (...c) => h('li', null, ...c);
   const installed = isInstalled();
   root.append(h('div', { class: 'page-head' }, h('h1', null, 'How to')),
-    section('Install RideHQ and share rides from OnelapFit', h('div', { class: 'stack' },
-      installed ? h('p', null, h('strong', null, 'RideHQ is installed on this device. '), 'If it does not show in the share menu yet, see step 4.') : null,
-      !installed && canInstall() ? button('Install RideHQ now', () => promptInstall(), { primary: true, iconName: 'download' }) : null,
+    section('Install RiderHQ and share rides from OnelapFit', h('div', { class: 'stack' },
+      installed ? h('p', null, h('strong', null, 'RiderHQ is installed on this device. '), 'If it does not show in the share menu yet, see step 4.') : null,
+      !installed && canInstall() ? button('Install RiderHQ now', () => promptInstall(), { primary: true, iconName: 'download' }) : null,
       h('ol', { class: 'steps' },
         li(h('b', null, 'Open rabinnapit.github.io/ride in Chrome'), ' on your phone (not inside another app).'),
         li('Tap ⋮ (top right) → ', h('b', null, 'Install app'), ' or ', h('b', null, 'Add to home screen → Install'), '. Choose Install, not "Create shortcut" — only an installed app can receive shared files.'),
-        li('In OnelapFit open a ride → share icon → ', h('b', null, 'RideHQ'), '. RideHQ opens and imports the ride by itself. You may need to tap "More" or scroll the share list the first time.'),
-        li('Not in the list? Open RideHQ once from the home screen, wait a minute, and try again. Still missing: long-press the RideHQ icon → App info → Uninstall, then install again from Chrome — this refreshes the share settings.'),
+        li('In OnelapFit open a ride → share icon → ', h('b', null, 'RiderHQ'), '. RiderHQ opens and imports the ride by itself. You may need to tap "More" or scroll the share list the first time.'),
+        li('Not in the list? Open RiderHQ once from the home screen, wait a minute, and try again. Still missing: long-press the RiderHQ icon → App info → Uninstall, then install again from Chrome — this refreshes the share settings.'),
         li(h('b', null, 'Fallback: '), 'share the ride to ', h('b', null, 'Drive'), ' or save it to Files, then tap Import ride here and pick the file. OnelapFit names files with a number (for example 12746) and no .fit ending — that is fine.'),
       ))),
     section('Get rides in', h('ol', { class: 'steps' },

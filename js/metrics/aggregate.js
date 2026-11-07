@@ -1,4 +1,4 @@
-// RideHQ — aggregation across rides: time windows, PMC, trends, power profile, eFTP, load metrics.
+// RiderHQ — aggregation across rides: time windows, PMC, trends, power profile, eFTP, load metrics.
 import { MMP_DURATIONS } from './compute.js';
 import { polarizationIndex, classifyDistribution } from './zones.js';
 import { rideLocalDate, addDays, daysBetween, todayIso } from '../settings.js';

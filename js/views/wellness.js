@@ -1,4 +1,4 @@
-// RideHQ — Wellness: daily entry (sleep, resting HR, HRV, weight, how you feel) → readiness; trends.
+// RiderHQ — Wellness: daily entry (sleep, resting HR, HRV, weight, how you feel) → readiness; trends.
 import { state, registerView, navigate, db, refreshData, recomputePmc } from '../app.js';
 import { h, icon, section, empty, button, table, input, field, toast, tile, select } from '../ui/dom.js';
 import { lineChart } from '../ui/charts.js';

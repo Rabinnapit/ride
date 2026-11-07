@@ -1,4 +1,4 @@
-// RideHQ — FIT import worker (module worker). Decodes, normalises and computes metrics off the main thread.
+// RiderHQ — FIT import worker (module worker). Decodes, normalises and computes metrics off the main thread.
 import { decodeFit, normalizeActivity, sha256Hex } from './parse.js';
 import { computeRide } from '../metrics/compute.js';
 

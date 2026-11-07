@@ -1,4 +1,4 @@
-// RideHQ — exercise demo modal and inline thumbnails.
+// RiderHQ — exercise demo modal and inline thumbnails.
 import { h, modal, icon } from './dom.js';
 import { exerciseDemo, hasDemo, videoUrl } from '../coach/figures.js';
 import { EXERCISES } from '../coach/gym.js';

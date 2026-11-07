@@ -1,4 +1,4 @@
-# RideHQ
+# RiderHQ
 
 Personal cycling analyzer, trainer, tracker and planner. Runs entirely in the browser as a static site (GitHub Pages) — no server, no account.
 

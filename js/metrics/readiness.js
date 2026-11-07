@@ -1,4 +1,4 @@
-// RideHQ — daily readiness from manual wellness entries + training-load state.
+// RiderHQ — daily readiness from manual wellness entries + training-load state.
 const isNum = v => Number.isFinite(v);
 const mean = a => { const v = a.filter(isNum); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : NaN; };
 const sd = a => { const v = a.filter(isNum); if (v.length < 2) return NaN; const m = mean(v); return Math.sqrt(v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1)); };

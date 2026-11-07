@@ -1,4 +1,4 @@
-// RideHQ — FIT decoding and normalisation.
+// RiderHQ — FIT decoding and normalisation.
 // Uses Garmin's official FIT SDK (vendor/fitsdk.js). Works in a Worker and in Node (tests).
 
 import { Decoder, Stream } from '../../vendor/fitsdk.js';
@@ -36,7 +36,7 @@ function rightPct(v) {
 }
 
 /**
- * Normalise decoded messages into RideHQ's activity shape.
+ * Normalise decoded messages into RiderHQ's activity shape.
  * @returns {{meta:object, streams:object, laps:object[], events:object[], deviceClimbs:object[]}}
  */
 export function normalizeActivity(messages, { fileName = '', hash = '' } = {}) {

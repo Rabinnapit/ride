@@ -1,4 +1,4 @@
-// RideHQ — chart wrappers: uPlot for ride streams, Chart.js for everything else, Leaflet for the route.
+// RiderHQ — chart wrappers: uPlot for ride streams, Chart.js for everything else, Leaflet for the route.
 import { h } from './dom.js';
 import { withInfo } from './glossary.js';
 import { fmtDuration } from '../settings.js';

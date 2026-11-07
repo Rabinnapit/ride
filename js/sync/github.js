@@ -1,4 +1,4 @@
-// RideHQ — backup/sync of raw FIT files and app data to a (private) GitHub repository via the Contents API.
+// RiderHQ — backup/sync of raw FIT files and app data to a (private) GitHub repository via the Contents API.
 import { db } from '../db.js';
 import { getSettings, saveSettings } from '../settings.js';
 
@@ -150,6 +150,11 @@ export async function pullCoachNotes() {
       } catch (e) { console.warn('bad coach note', f.path, e); }
     }
   }
+  // products Claude added from label photos (coach/fuel-items.json) → merged into "My fuel"
+  try {
+    const fb = await gh(`/repos/${s.owner}/${s.repo}/contents/coach/fuel-items.json?ref=${ref}`, { raw: true });
+    if (fb) { const { mergeFuelItems } = await import('../modules/fuel.js'); n += await mergeFuelItems(JSON.parse(new TextDecoder().decode(fb))); }
+  } catch (e) { console.warn('fuel items', e); }
   const nb = await gh(`/repos/${s.owner}/${s.repo}/contents/coach/notebook.md?ref=${ref}`, { raw: true });
   if (nb) await db.setSetting('coachNotebook', { text: new TextDecoder().decode(nb), fetchedAt: new Date().toISOString() });
   await db.setSetting('coachShas', known);

@@ -1,4 +1,4 @@
-// RideHQ — application shell: state, routing, import pipeline, layout.
+// RiderHQ — application shell: state, routing, import pipeline, layout.
 import { db, requestPersistence } from './db.js';
 import { loadSettings, getSettings, saveSettings, rideParams, rideLocalDate, rideLocalTime, todayIso, addDays, isoDate } from './settings.js';
 import { pmcSeries } from './metrics/aggregate.js';
@@ -10,7 +10,7 @@ import { matchRidesToPlan } from './coach/planner.js';
 
 export const METRICS_VERSION = 2; // bump when zone definitions or ride metrics change → rides recompute on next launch
 export const state = {
-  settings: null, rides: [], wellness: [], plan: null, gymlog: [], equipment: [], pmc: [], forecast: null, readiness: null,
+  settings: null, rides: [], wellness: [], plan: null, gymlog: [], equipment: [], pmc: [], forecast: null, readiness: null, coachNotes: [],
   importing: 0, route: { name: 'home', params: {} }, activeCleanup: null,
 };
 
@@ -42,6 +42,7 @@ export async function refreshData() {
   state.equipment = await db.getAll('equipment');
   state.plan = (await db.get('plans', 'current')) || null;
   if (state.plan) { matchRidesToPlan(state.plan, state.rides.filter(r => !r.excluded), rideLocalDate); }
+  state.coachNotes = (await db.getAll('ai')).filter(a => a.provider === 'claude-chat' && a.parsed).sort((a, b) => `${b.parsed.date || ''}${b.parsed.ts || ''}`.localeCompare(`${a.parsed.date || ''}${a.parsed.ts || ''}`));
   recomputePmc();
 }
 export function recomputePmc() {
@@ -198,13 +199,13 @@ function buildLayout() {
   clear(app);
   const fileInput = h('input', { type: 'file', multiple: true, style: { display: 'none' }, 'data-fit': '1', onChange: (e) => { importFiles(e.target.files); e.target.value = ''; } });
   const side = h('aside', { class: 'side' },
-    h('a', { class: 'brand', href: '#/home' }, h('span', { class: 'brand-mark' }, 'R'), h('span', null, 'RideHQ')),
+    h('a', { class: 'brand', href: '#/home' }, h('span', { class: 'brand-mark' }, 'R'), h('span', null, 'RiderHQ')),
     h('nav', { class: 'side-nav' }, SIDE.map(n => h('a', { href: `#/${n.name}`, 'data-nav': n.name, 'data-side': '1' }, icon(n.icon), n.label))),
     h('button', { class: 'btn primary import-btn', onClick: () => fileInput.click() }, icon('upload'), 'Import ride'),
     h('div', { id: 'import-badge', class: 'import-badge' }),
     h('button', { class: 'theme-btn theme-toggle', onClick: toggleTheme, 'aria-label': 'Change theme' }, icon('auto')),
   );
-  const top = h('header', { class: 'topbar' }, h('a', { class: 'brand', href: '#/home' }, h('span', { class: 'brand-mark' }, 'R'), h('span', null, 'RideHQ')), h('div', { class: 'top-actions' }, h('button', { class: 'icon-btn', onClick: () => fileInput.click(), 'aria-label': 'Import ride' }, icon('upload')), h('button', { class: 'icon-btn theme-toggle', onClick: toggleTheme, 'aria-label': 'Change theme' }, icon('auto'))));
+  const top = h('header', { class: 'topbar' }, h('a', { class: 'brand', href: '#/home' }, h('span', { class: 'brand-mark' }, 'R'), h('span', null, 'RiderHQ')), h('div', { class: 'top-actions' }, h('button', { class: 'icon-btn', onClick: () => fileInput.click(), 'aria-label': 'Import ride' }, icon('upload')), h('button', { class: 'icon-btn theme-toggle', onClick: toggleTheme, 'aria-label': 'Change theme' }, icon('auto'))));
   const main = h('main', { id: 'view', class: 'view' });
   main.append = (...children) => { append(main, children); };
   const bottom = h('nav', { class: 'bottom-nav' }, NAV.map(n => h('a', { href: `#/${n.name}`, 'data-nav': n.name }, icon(n.icon), h('span', null, n.label))));
@@ -245,7 +246,7 @@ export async function promptInstall() {
   return choice?.outcome === 'accepted';
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; if (['home', 'howto', 'settings'].includes(state.route.name)) render(); });
-window.addEventListener('appinstalled', () => { deferredInstall = null; toast('RideHQ installed — it now appears in your share menu'); });
+window.addEventListener('appinstalled', () => { deferredInstall = null; toast('RiderHQ installed — it now appears in your share menu'); });
 
 // ---------- share-target inbox & file handling ----------
 async function drainInbox() {
@@ -287,6 +288,6 @@ export async function boot() {
       try { if (await m.adoptRemoteProfile()) { toast('Profile restored from your GitHub backup — recalculating rides…', { ms: 5000 }); await recomputeAll(); render(); toast('Rides recalculated with your FTP, heart-rate and weight'); } } catch (e) { console.warn('profile restore', e); }
     }
     return m.pullCoachNotes();
-  }).then(n => { if (n) { toast(`${n} new note${n > 1 ? 's' : ''} from Claude`); if (['ride', 'coach'].includes(state.route.name)) render(); } }).catch(e => console.warn('coach notes', e));
+  }).then(async n => { if (n) { toast(`${n} new note${n > 1 ? 's' : ''} from Claude`); await refreshData(); if (['home', 'ride', 'coach', 'nutrition'].includes(state.route.name)) render(); } }).catch(e => console.warn('coach notes', e));
 }
 export { rideLocalDate, rideLocalTime, todayIso, addDays, isoDate, getSettings, saveSettings, db, h, icon, toast };

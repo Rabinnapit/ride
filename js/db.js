@@ -1,4 +1,4 @@
-// RideHQ — IndexedDB storage (no dependencies).
+// RiderHQ — IndexedDB storage (no dependencies).
 const DB_NAME = 'ridehq';
 const DB_VERSION = 1;
 const STORES = {

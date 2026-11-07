@@ -1,4 +1,4 @@
-// RideHQ — zone models. Boundaries use floor(pct × anchor) upper bounds so they match the Magene/OnelapFit tables.
+// RiderHQ — zone models. Boundaries use floor(pct × anchor) upper bounds so they match the Magene/OnelapFit tables.
 
 export const POWER_ZONES = [
   { z: 1, key: 'ar', name: 'Recovery', pct: [0, 0.55], color: '#7589A8' },

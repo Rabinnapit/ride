@@ -1,4 +1,4 @@
-// RideHQ — ride list with filters and calendar strip.
+// RiderHQ — ride list with filters and calendar strip.
 import { state, registerView, navigate } from '../app.js';
 import { h, section, empty, button, segmented, tile } from '../ui/dom.js';
 import { rideCard } from './home.js';

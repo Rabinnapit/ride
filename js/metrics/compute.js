@@ -1,4 +1,4 @@
-// RideHQ — per-ride metrics engine. Pure functions; runs in a Worker and in Node.
+// RiderHQ — per-ride metrics engine. Pure functions; runs in a Worker and in Node.
 import {
   powerZonesFor, hrZonesFor, threeZonePower, threeZoneHr, timeInZones, polarizationIndex, classifyDistribution, CADENCE_BUCKETS,
 } from './zones.js';

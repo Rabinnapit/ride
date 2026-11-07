@@ -1,6 +1,6 @@
 {
-  "name": "RideHQ — cycling analyzer, trainer, tracker",
-  "short_name": "RideHQ",
+  "name": "RiderHQ — cycling analyzer, trainer, tracker",
+  "short_name": "RiderHQ",
   "description": "Personal cycling analyzer, trainer, tracker and planner for Magene C706 and Zwift rides.",
   "id": "./",
   "start_url": "./index.html",

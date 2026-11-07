@@ -1,4 +1,4 @@
-// RideHQ — tiny DOM helpers and shared components.
+// RiderHQ — tiny DOM helpers and shared components.
 import { withInfo } from './glossary.js';
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -57,6 +57,8 @@ const ICONS = {
   warn: '<path d="M12 3 2 20h20z"/><path d="M12 9v5M12 17h.01"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  minus: '<path d="M5 12h14"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   play: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/>',
 };
 export function icon(name, cls = '') {

@@ -1,4 +1,4 @@
-// RideHQ — two-week plan generator: periodized toward the goal event, bike + gym + mobility, weather-aware.
+// RiderHQ — two-week plan generator: periodized toward the goal event, bike + gym + mobility, weather-aware.
 import { buildWorkout, plannedTss, workoutById } from './workouts.js';
 import { SESSIONS, MOBILITY } from './gym.js';
 import { addDays, daysBetween, dowOf, todayIso, DAY_NAMES } from '../settings.js';
@@ -179,7 +179,7 @@ export function matchRidesToPlan(plan, rides, rideLocalDate) {
 /** .ics export of the plan (floating local times). */
 export function planToIcs(plan, settings) {
   const esc = s => String(s || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RideHQ//Plan//EN', 'CALSCALE:GREGORIAN'];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RiderHQ//Plan//EN', 'CALSCALE:GREGORIAN'];
   let n = 0;
   for (const d of plan.days) for (const s of d.sessions) {
     if (s.kind === 'rest' || s.kind === 'mobility') continue;

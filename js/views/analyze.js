@@ -1,4 +1,4 @@
-// RideHQ — Analyze: one window selector drives every panel; compare against the previous window.
+// RiderHQ — Analyze: one window selector drives every panel; compare against the previous window.
 import { state, registerView, navigate } from '../app.js';
 import { h, tile, section, empty, segmented, zoneBars, delta, table, input, field, button, pill, h3i } from '../ui/dom.js';
 import { mmpChart, barsChart, lineChart, pmcChart, ZONE_COLORS } from '../ui/charts.js';

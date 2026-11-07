@@ -1,4 +1,4 @@
-// RideHQ — plain-language explanations for every number and term in the app.
+// RiderHQ — plain-language explanations for every number and term in the app.
 import { h, modal } from './dom.js';
 
 /** key → { term, what, good? } — written for someone new to cycling. */
@@ -41,6 +41,7 @@ export const GLOSSARY = {
   vam: { term: 'VAM', what: 'Meters climbed per hour on a climb. It lets you compare climbing ability across different hills.', good: 'Recreational 400–700 · strong amateur 900–1,200 · pros 1,600+ m/h.' },
   climbcat: { term: 'Climb category', what: 'Difficulty of a climb from its length × gradient. Cat 4 is the easiest categorized climb, then Cat 3, 2, 1 and HC (hardest).' },
   kj: { term: 'Work (kJ) and calories', what: 'Kilojoules of work you did on the pedals. Because the body is ~22% efficient, kJ of work ≈ kcal burned.' },
+  carbsph: { term: 'Carbs per hour', what: 'Grams of carbohydrate you took in per hour of riding, from gels, food and drinks. Your body stores only ~90 minutes of hard-riding fuel, so on longer rides what you eat sets how the last hour goes.', good: '30–60 g/h for rides of 1–2.5 hours; 60–90 g/h beyond that. Spread it out: something every 20–30 minutes.' },
   rpe: { term: 'RPE (perceived effort)', what: 'How hard the ride felt to you, from 1 (very easy) to 10 (maximal). It adds context to the numbers.' },
   lthr: { term: 'Threshold heart rate (LTHR)', what: 'The heart rate you can hold for about an hour all-out. Used for heart-rate zones and hrTSS. Yours is about 161–162 bpm.' },
   hrmax: { term: 'Max heart rate', what: 'The highest heart rate you reach. Yours is 183 bpm (Oct 31 ride).' },

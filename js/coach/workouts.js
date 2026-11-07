@@ -1,4 +1,4 @@
-// RideHQ — structured workout library, planned-load math and exports (.zwo / .mrc).
+// RiderHQ — structured workout library, planned-load math and exports (.zwo / .mrc).
 // Segments: {dur (s), lo, hi (fraction of FTP; ramp when lo != hi), cad (rpm, optional), text (optional), kind}
 
 const S = (dur, p, extra = {}) => ({ dur, lo: p, hi: p, ...extra });
@@ -108,7 +108,7 @@ export function describeSegments(segments, ftp) {
   return out;
 }
 
-export function toZwo(workout, { author = 'RideHQ', ftp } = {}) {
+export function toZwo(workout, { author = 'RiderHQ', ftp } = {}) {
   const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const lines = [];
   for (const s of workout.segments) {
@@ -116,7 +116,7 @@ export function toZwo(workout, { author = 'RideHQ', ftp } = {}) {
     if (s.lo !== s.hi) lines.push(`    <Ramp Duration="${s.dur}" PowerLow="${s.lo.toFixed(2)}" PowerHigh="${s.hi.toFixed(2)}"${cad}/>`);
     else lines.push(`    <SteadyState Duration="${s.dur}" Power="${s.lo.toFixed(2)}"${cad}${s.text ? `>\n      <textevent timeoffset="0" message="${esc(s.text)}"/>\n    </SteadyState` : '/'}>`);
   }
-  return `<workout_file>\n  <author>${esc(author)}</author>\n  <name>${esc(workout.name)}</name>\n  <description>${esc(workout.why || '')}${ftp ? ` (built for FTP ${ftp} W)` : ''}</description>\n  <sportType>bike</sportType>\n  <tags><tag name="RideHQ"/><tag name="${esc(CATEGORY[workout.cat]?.label || workout.cat)}"/></tags>\n  <workout>\n${lines.join('\n')}\n  </workout>\n</workout_file>\n`;
+  return `<workout_file>\n  <author>${esc(author)}</author>\n  <name>${esc(workout.name)}</name>\n  <description>${esc(workout.why || '')}${ftp ? ` (built for FTP ${ftp} W)` : ''}</description>\n  <sportType>bike</sportType>\n  <tags><tag name="RiderHQ"/><tag name="${esc(CATEGORY[workout.cat]?.label || workout.cat)}"/></tags>\n  <workout>\n${lines.join('\n')}\n  </workout>\n</workout_file>\n`;
 }
 export function toMrc(workout) {
   const rows = []; let t = 0;

@@ -1,4 +1,4 @@
-// RideHQ — settings, rider profile and unit handling.
+// RiderHQ — settings, rider profile and unit handling.
 import { db } from './db.js';
 
 export const DEFAULT_SETTINGS = {
@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS = {
     event: { name: 'Incheon → Busan (4 Rivers path)', date: '2027-05-29', distanceKm: 633, days: 6, climbPerDayM: 500, steepestGradePct: 12 },
     priorities: ['climbing', 'endurance'],
     targetFtp: null, targetWeightKg: null,
+    groupA: { label: 'Group A club ride', avgKmh: 32, ftpWkg: 3.2 }, // the weekend fast group: typical pace and the W/kg that holds it
     notes: 'Climb better; comfortable 100–150 km rides with repeated ~10% hills; finish the 633 km Incheon→Busan ride in 6 days (late May / early June 2027).',
   },
   schedule: {

@@ -1,4 +1,4 @@
-// RideHQ — rule-based "what to focus on" engine. Every recommendation cites the metric that triggered it.
+// RiderHQ — rule-based "what to focus on" engine. Every recommendation cites the metric that triggered it.
 import { MMP_DURATIONS } from '../metrics/compute.js';
 import { aggregate, ridesInRange, powerProfile, estimateFtp, multiDayBlocks, loadMetrics, trend } from '../metrics/aggregate.js';
 import { addDays, todayIso, daysBetween, rideLocalDate, fmtDuration } from '../settings.js';
@@ -130,7 +130,7 @@ export function buildFocus({ settings, rides, pmc, today = todayIso(), readiness
 
   // 10. Season / equipment
   const indoorFrom = settings.schedule.indoorAvailableFrom;
-  if (indoorFrom && today < indoorFrom) cards.push({ id: 'season', priority: 4, title: 'Winter plan: trainer arrives ' + indoorFrom, metric: { label: 'Outdoor cutoff', value: `${settings.schedule.outdoorMinTempF}°F` }, summary: 'Until the KICKR CORE 2 arrives, mornings under 35°F are gym or rest days; the plan already assumes indoor sessions from that date. Zwift FIT files import here like Magene files.', evidence: [], actions: ['Zwift → zwift.com → My activities → download .fit → import into RideHQ.', 'Export planned workouts as .zwo and drop them into Documents/Zwift/Workouts/<your Zwift ID>/.'] });
+  if (indoorFrom && today < indoorFrom) cards.push({ id: 'season', priority: 4, title: 'Winter plan: trainer arrives ' + indoorFrom, metric: { label: 'Outdoor cutoff', value: `${settings.schedule.outdoorMinTempF}°F` }, summary: 'Until the KICKR CORE 2 arrives, mornings under 35°F are gym or rest days; the plan already assumes indoor sessions from that date. Zwift FIT files import here like Magene files.', evidence: [], actions: ['Zwift → zwift.com → My activities → download .fit → import into RiderHQ.', 'Export planned workouts as .zwo and drop them into Documents/Zwift/Workouts/<your Zwift ID>/.'] });
 
   cards.sort((a, b) => a.priority - b.priority);
   return { cards, profile, eftp, loadMetrics: lm, blocks, phase, a30, a90 };

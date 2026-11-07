@@ -1,4 +1,4 @@
-// RideHQ — Train: focus recommendations, the 14-day plan (bike + gym + mobility), workout library and exports.
+// RiderHQ — Train: focus recommendations, the 14-day plan (bike + gym + mobility), workout library and exports.
 import { state, registerView, navigate, savePlan, saveSettings, loadForecast, db } from '../app.js';
 import { h, icon, section, empty, button, segmented, table, modal, toast, pill, downloadFile, kv, confirmDialog } from '../ui/dom.js';
 import { focusCard } from './home.js';
@@ -45,7 +45,7 @@ async function regenerate(s, rides, today, startDate = today) {
   await savePlan(plan);
   await db.put('planlog', { id: plan.generatedAt, startDate, phase: plan.phase.key, weeklyPlannedTss: plan.weeklyPlannedTss });
   toast('Plan generated');
-  navigate('train');
+  if (state.route.name === 'train') navigate('train');
 }
 
 function renderPlan(root, s, rides, today) {
@@ -58,7 +58,7 @@ function renderPlan(root, s, rides, today) {
   const compliance = done.length ? done.filter(x => x.done).length / done.filter(x => x.date <= today || true).length : 0;
   const bar = h('div', { class: 'plan-bar' },
     h('div', null, h('strong', null, plan.phase.label), h('div', { class: 'muted small' }, plan.summary)),
-    h('div', { class: 'row' }, button('Regenerate', async () => { if (await confirmDialog('Regenerate plan?', 'Builds a fresh 14 days from today using your latest rides and readiness. Completed sessions stay linked.')) regenerate(getSettings(), rides, today); }, { small: true }), button('Calendar (.ics)', () => downloadFile('ridehq-plan.ics', planToIcs(plan, s), 'text/calendar'), { small: true, iconName: 'calendar' }), button('All .zwo', () => exportAllZwo(plan), { small: true, iconName: 'download' })),
+    h('div', { class: 'row' }, button('Regenerate', async () => { if (await confirmDialog('Regenerate plan?', 'Builds a fresh 14 days from today using your latest rides and readiness. Completed sessions stay linked.')) regenerate(getSettings(), rides, today); }, { small: true }), button('Calendar (.ics)', () => downloadFile('riderhq-plan.ics', planToIcs(plan, s), 'text/calendar'), { small: true, iconName: 'calendar' }), button('All .zwo', () => exportAllZwo(plan), { small: true, iconName: 'download' })),
   );
   const notes = plan.notes?.length ? h('div', { class: 'alert static' }, icon('info'), h('span', null, plan.notes.join(' '))) : null;
   const weeks = [plan.days.slice(0, 7), plan.days.slice(7)];
@@ -93,7 +93,7 @@ function sessionRow(x, d, s, plan) {
   return row;
 }
 
-function sessionDetail(x, d, s, plan) {
+export function sessionDetail(x, d, s, plan) {
   const ftp = x.ftp || currentFtp(s) || 150;
   const body = h('div', { class: 'stack' });
   body.appendChild(h('p', null, x.description || ''));
@@ -109,7 +109,7 @@ function sessionDetail(x, d, s, plan) {
   if (x.items) body.appendChild(h('div', { class: 'stack' }, x.items.map(i => h('div', { class: 'session gym-row' }, demoThumb(i.key, { sets: i.sets, reps: i.reps, note: i.note }), h('span', { class: 'session-text' }, exerciseLink(i.key, i.name, { sets: i.sets, reps: i.reps, note: i.note }), h('small', null, `${i.sets} × ${i.reps}${i.note ? ` (${i.note})` : ''} — ${i.cue}`))))));
   if (x.kind === 'gym') body.appendChild(button('Log this session in Gym', () => { m.close(); navigate(`gym/${d.date}`); }, { primary: true, small: true }));
   const actions = [];
-  if (x.kind !== 'rest' && x.kind !== 'event') actions.push({ label: x.done ? 'Mark not done' : 'Mark done', primary: !x.done, onClick: async () => { x.done = !x.done; if (!x.done) x.linkedRideId = null; await savePlan(plan); navigate('train'); } });
+  if (x.kind !== 'rest' && x.kind !== 'event') actions.push({ label: x.done ? 'Mark not done' : 'Mark done', primary: !x.done, onClick: async () => { x.done = !x.done; if (!x.done) x.linkedRideId = null; await savePlan(plan); navigate(location.hash); } });
   if (x.kind === 'bike') actions.push({ label: 'Swap workout', onClick: async () => { m.close(); swapWorkout(x, d, s, plan); return false; } });
   const m = modal(`${d.dayName} ${fmtDate(d.date)} — ${x.title}`, body, { actions, wide: true });
 }
@@ -119,13 +119,13 @@ function swapWorkout(x, d, s, plan) {
   const list = h('div', { class: 'stack' }, WORKOUTS.map(w => h('button', { class: 'session', onClick: async () => {
     const built = buildWorkout(w.id, x.durationMin);
     Object.assign(x, { workoutId: built.id, title: built.name, cat: built.cat, durationMin: Math.round(built.durationSec / 60), segments: built.segments, plannedTss: Math.round(plannedTss(built.segments)), description: built.why, intensity: !['recovery', 'endurance'].includes(built.cat) });
-    await savePlan(plan); m.close(); navigate('train');
+    await savePlan(plan); m.close(); navigate(location.hash);
   } }, h('span', { class: 'session-dot', style: { background: CATEGORY[w.cat]?.color } }), h('span', { class: 'session-text' }, h('b', null, w.name), h('small', null, `${CATEGORY[w.cat]?.label} · ${w.min.join('/')} min`)))));
   const m = modal('Swap workout', list, { wide: true });
   void ftp;
 }
 
-function segmentBar(segments) {
+export function segmentBar(segments) {
   const total = segments.reduce((a, x) => a + x.dur, 0);
   const colorFor = f => f < 0.55 ? '#7589A8' : f < 0.75 ? '#1A63C9' : f < 0.9 ? '#2E9E4F' : f < 1.05 ? '#D4A106' : f < 1.2 ? '#E8731A' : f < 1.5 ? '#D33A2F' : '#7B3FBF';
   return h('div', { class: 'segbar' }, segments.map(x => h('span', { style: { width: `${x.dur / total * 100}%`, height: `${Math.min(100, Math.max(18, ((x.lo + x.hi) / 2) * 70))}%`, background: colorFor((x.lo + x.hi) / 2) }, title: `${Math.round(x.dur / 60)} min @ ${Math.round((x.lo + x.hi) / 2 * 100)}%` })));

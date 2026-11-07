@@ -1,4 +1,4 @@
-// RideHQ — AI coach layer: Gemini or Claude called directly from the browser with the rider's own API key.
+// RiderHQ — AI coach layer: Gemini or Claude called directly from the browser with the rider's own API key.
 // The deterministic engine computes everything; the model explains, prioritizes and proposes adjustments within rules.
 import { db } from '../db.js';
 import { getSettings, fmtDuration, rideLocalDate } from '../settings.js';
@@ -10,7 +10,7 @@ export const CLAUDE_MODELS = [
   { id: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
 ];
 
-const COACH_SYSTEM = `You are RideHQ's cycling coach: evidence-based, plain-spoken, specific. You coach one recreational road cyclist.
+const COACH_SYSTEM = `You are RiderHQ's cycling coach: evidence-based, plain-spoken, specific. You coach one recreational road cyclist.
 Rules you never break: at most 2 intensity days per week unless the data says readiness is green and TSB > -10 (then 3); no heavy leg strength within 24 h before the long ride; keep CTL ramp ≤ 7 per week; honor recovery weeks; endurance rides stay ≤ 75% FTP; cite the metric that drives each statement; say "insufficient data" instead of guessing.
 All computed numbers in the payload are authoritative — do not recompute TSS, NP or zones. Weight is given in kg; the rider reads lb, so include both when you mention weight. Temperatures in °F.
 Write for a smart adult with no coaching jargon; one or two sentences per point.`;
@@ -92,6 +92,13 @@ export async function askCoach({ kind, user, schema = ANALYSIS_SCHEMA, system = 
 }
 
 // ---------- payload builders ----------
+function fuelSummary(r) {
+  const es = (r.fuel?.entries || []).filter(e => e.qty > 0);
+  if (!es.length) return null;
+  const sum = k => Math.round(es.reduce((a, e) => a + (+e[k] || 0) * e.qty, 0));
+  const hrs = r.timerSec / 3600;
+  return { items: es.map(e => `${e.qty}× ${e.name}`).join(', '), carbsG: sum('carbs'), carbsPerHour: hrs ? Math.round(sum('carbs') / hrs) : null, fluidMl: sum('fluidMl'), sodiumMg: sum('sodiumMg'), caffeineMg: sum('caffeineMg') };
+}
 export function compactRide(r) {
   const mmpAt = d => r.mmp ? r.mmp[MMP_DURATIONS.indexOf(d)] : null;
   return {
@@ -103,6 +110,7 @@ export function compactRide(r) {
     balanceLR: Number.isFinite(r.balanceLeft) ? `${r.balanceLeft.toFixed(0)}/${r.balanceRight.toFixed(0)}` : null, torqueEff: r.teLeft, pedalSmooth: r.psLeft, standingSec: r.standingSec,
     climbs: (r.climbs || []).map(c => ({ lengthM: Math.round(c.lengthM), gainM: Math.round(c.gainM), avgGrade: +c.avgGrade.toFixed(1), vam: Math.round(c.vam), avgPower: c.avgPower ? Math.round(c.avgPower) : null })),
     powerSuspect: r.powerSuspect || false, ftpUsed: r.paramsUsed?.ftp, tempF: Number.isFinite(r.avgTemp) ? Math.round(r.avgTemp * 9 / 5 + 32) : null, rpe: r.rpe || null, notes: r.notes || null,
+    fuel: fuelSummary(r),
   };
 }
 
@@ -157,12 +165,12 @@ function historyTable(rides) {
 export function syncReady(s = getSettings()) { return !!(s.sync?.token && s.sync?.owner && s.sync?.repo); }
 export function chatMessageForRide(ride, allRides, s = getSettings()) {
   const when = shortDate(rideLocalDate(ride));
-  if (syncReady(s)) return `Analyze my ride from ${when} — RideHQ ride ${ride.id.slice(0, 8)}. It's backed up in ${s.sync.owner}/${s.sync.repo} with my history. Save the analysis there when you're done.`;
+  if (syncReady(s)) return `Analyze my ride from ${when} — RiderHQ ride ${ride.id.slice(0, 8)}. It's backed up in ${s.sync.owner}/${s.sync.repo} with my history. Save the analysis there when you're done.`;
   const others = allRides.filter(r => r.id !== ride.id && !r.excluded);
-  return `Analyze my ride from ${when} (RideHQ, no repo sync yet).\n\nTHIS RIDE:\n${JSON.stringify(compactRide(ride))}\n\nHISTORY (date id name time dist climb intensity load):\n${historyTable(others)}`;
+  return `Analyze my ride from ${when} (RiderHQ, no repo sync yet).\n\nTHIS RIDE:\n${JSON.stringify(compactRide(ride))}\n\nHISTORY (date id name time dist climb intensity load):\n${historyTable(others)}`;
 }
 export function chatMessageForReview(allRides, wellness, plan, s = getSettings()) {
   if (syncReady(s)) return `Weekly review please — everything is in ${s.sync.owner}/${s.sync.repo}. Update the coach notebook and adjust my plan if needed.`;
   const recent = allRides.filter(r => !r.excluded).slice(0, 12);
-  return `Weekly review please (RideHQ, no repo sync yet).\n\nRIDES:\n${historyTable(allRides.filter(r => !r.excluded))}\n\nLAST RIDES DETAIL:\n${JSON.stringify(recent.map(compactRide))}\n\nWELLNESS (last 14):\n${JSON.stringify(wellness.slice(-14))}\n\nPLAN:\n${JSON.stringify(plan ? plan.days.map(d => ({ date: d.date, s: d.sessions.map(x => x.title + (x.done ? ' ✓' : '')) })) : null)}`;
+  return `Weekly review please (RiderHQ, no repo sync yet).\n\nRIDES:\n${historyTable(allRides.filter(r => !r.excluded))}\n\nLAST RIDES DETAIL:\n${JSON.stringify(recent.map(compactRide))}\n\nWELLNESS (last 14):\n${JSON.stringify(wellness.slice(-14))}\n\nPLAN:\n${JSON.stringify(plan ? plan.days.map(d => ({ date: d.date, s: d.sessions.map(x => x.title + (x.done ? ' ✓' : '')) })) : null)}`;
 }
