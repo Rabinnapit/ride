@@ -107,8 +107,12 @@ registerView('equipment', (root) => {
   const groups = [...new Set(COMPONENT_TYPES.map(t => t.group)), 'Other'];
   const byGroup = groups.map(g => [g, rows.filter(r => (r.t.group || 'Other') === g).sort((a, b) => b.st.pct - a.st.pct)]).filter(([, rs]) => rs.length);
   const allPanel = section('Everything', h('div', null, byGroup.map(([g, rs]) => h('div', { class: 'mt-group' }, h('h3', null, g), h('div', { class: 'mt-list' }, rs.map(item))))), { sub: 'Tap an item to change its interval or last-done date. Done resets the counter to today and the current odometer.' });
-  const log = (state.equipment.flatMap(c => (c.history || []).map(x => ({ ...x, name: c.name || typeOf(c.type).label }))).sort((a, b) => b.date.localeCompare(a.date))).slice(0, 12);
-  const logPanel = log.length ? section('Service log', table(['Date', 'Item', 'Odometer'], log.map(x => [fmtDate(x.date), `${x.name}${x.action === 'replaced' ? ' (replaced)' : ''}`, `${Math.round(x.odoKm).toLocaleString()} km`]))) : null;
+  const log = state.equipment.flatMap(c => (c.history || []).map((x, i) => ({ ...x, c, i, last: i === c.history.length - 1, name: c.name || typeOf(c.type).label }))).sort((a, b) => b.date.localeCompare(a.date) || b.i - a.i).slice(0, 20);
+  const logPanel = log.length ? section('Service log', table(['Date', 'Item', 'Odometer', ''], log.map(x => [fmtDate(x.date), `${x.name}${x.action === 'replaced' ? ' (replaced)' : ''}`, `${Math.round(x.odoKm).toLocaleString()} km`,
+    h('div', { class: 'row log-actions' },
+      x.last ? button('Undo', () => undoEntry(x.c, x.i), { small: true }) : null,
+      button('Delete', () => deleteEntry(x.c, x.i), { small: true, danger: true }))])),
+  { sub: 'Undo takes back the latest check-off for an item and restores its counter to where it was. Delete just removes a line from the log; the counter stays as it is.' }) : null;
   root.append(head, odoPanel, attPanel, allPanel, logPanel, guidePanel());
 });
 function guidePanel() {
@@ -119,6 +123,16 @@ async function markDone(c, odoKm, t) {
   const history = [...(c.history || []), { date: today, odoKm, action: t.kind === 'service' ? 'done' : 'replaced', prevDate: c.installedDate, prevOdoKm: c.installedOdoKm }];
   await db.put('equipment', { ...c, installedDate: today, installedOdoKm: Math.round(odoKm), history });
   await refreshData(); toast(`${c.name || t.label}: ${t.kind === 'service' ? 'done' : 'replaced'}. Counter reset.`); navigate('equipment');
+}
+async function undoEntry(c, i) {
+  const e = c.history[i];
+  const restored = { ...c, history: c.history.filter((_, j) => j !== i) };
+  if (e.prevDate !== undefined) { restored.installedDate = e.prevDate; restored.installedOdoKm = e.prevOdoKm; }
+  await db.put('equipment', restored); await refreshData(); toast(`${c.name || typeOf(c.type).label}: check-off undone, counter restored`); navigate('equipment');
+}
+async function deleteEntry(c, i) {
+  if (!(await confirmDialog('Delete this log entry?', 'The item’s counter is not changed. Use Undo on the latest entry to restore the counter.'))) return;
+  await db.put('equipment', { ...c, history: c.history.filter((_, j) => j !== i) }); await refreshData(); toast('Log entry deleted'); navigate('equipment');
 }
 function presetDialog(bikes, odoFor) {
   const bike = bikes[0] || 'Bike';
@@ -148,7 +162,7 @@ function compDialog(c, bikes, odoFor) {
   typeSel.addEventListener('change', () => { const t = typeOf(typeSel.value); limKm.placeholder = t.km ? `default ${t.km}` : 'none'; limDays.placeholder = t.days ? `default ${t.days}` : 'none'; });
   const body = h('div', { class: 'grid-2' }, field('Item', typeSel), field('Bike', bikeSel), field('Name / model', name), field('Last done / installed on', date), field('Odometer then (km)', odo, 'Current odometer is pre-filled'), field('Every (km)', limKm), field('Every (days)', limDays));
   const actions = [{ label: 'Save', primary: true, onClick: async () => { await db.put('equipment', { ...(c || {}), id: c?.id || `c-${Date.now()}`, type: typeSel.value, bike: bikeSel.value, name: name.value, installedDate: date.value, installedOdoKm: Number.isFinite(parseFloat(odo.value)) ? +odo.value : 0, limitKm: +limKm.value || null, limitDays: +limDays.value || null, history: c?.history || [] }); await refreshData(); navigate('equipment'); } }];
-  if (c) actions.unshift({ label: 'Delete', danger: true, onClick: async () => { await db.delete('equipment', c.id); await refreshData(); navigate('equipment'); } });
+  if (c) actions.unshift({ label: 'Delete item', danger: true, onClick: async () => { if (!(await confirmDialog(`Delete ${c.name || typeOf(c.type).label}?`, 'Removes the item and its service log.'))) return false; await db.delete('equipment', c.id); await refreshData(); navigate('equipment'); } });
   modal(c ? `Edit ${c.name || typeOf(c.type).label}` : 'Add maintenance item', body, { actions });
 }
 

@@ -364,3 +364,4 @@ details summary { cursor: pointer; font-weight: 500; }
 .mt-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; } .mt-bar i { display: block; height: 100%; background: var(--good); border-radius: 3px; }
 .mt-item.soon .mt-bar i { background: var(--warn); } .mt-item.due .mt-bar i { background: var(--bad); }
 .mt-meta { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+.log-actions { gap: 6px; flex-wrap: nowrap; justify-content: flex-end; }
