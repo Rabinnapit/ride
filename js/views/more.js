@@ -83,7 +83,8 @@ registerView('equipment', (root) => {
   const bikes = [...new Set(rides.map(r => r.bikeName || 'Bike'))];
   const odoFor = b => rides.filter(r => (r.bikeName || 'Bike') === b).reduce((a, r) => a + r.distanceM, 0) / 1000;
   const bikeOf = c => c.bike || bikes[0] || 'Bike';
-  const head = h('div', { class: 'page-head' }, h('h1', null, 'Maintenance'), h('div', { class: 'page-actions' }, button('Add item', () => compDialog(null, bikes, odoFor), { small: true, iconName: 'plus' })));
+  odoFor.at = (b, date) => rides.filter(r => (r.bikeName || 'Bike') === b && rideLocalDate(r) < date).reduce((a, r) => a + r.distanceM, 0) / 1000;
+  const head = h('div', { class: 'page-head' }, h('h1', null, 'Maintenance'), h('div', { class: 'page-actions' }, state.equipment.length ? button('Set dates', () => datesDialog(bikes, odoFor), { small: true, iconName: 'calendar' }) : null, button('Add item', () => compDialog(null, bikes, odoFor), { small: true, iconName: 'plus' })));
   const odoPanel = section('Odometer', h('div', { class: 'tiles compact' }, (bikes.length ? bikes : ['Bike']).map(b => tile(units.distStr(odoFor(b) * 1000, 0), b, `${rides.filter(r => (r.bikeName || 'Bike') === b).length} rides`))), { sub: 'Distance from your imported rides. Service counters run off this, so import every ride (indoor trainer rides count for the drivetrain too).' });
 
   if (!state.equipment.length) {
@@ -134,19 +135,37 @@ async function deleteEntry(c, i) {
   if (!(await confirmDialog('Delete this log entry?', 'The item’s counter is not changed. Use Undo on the latest entry to restore the counter.'))) return;
   await db.put('equipment', { ...c, history: c.history.filter((_, j) => j !== i) }); await refreshData(); toast('Log entry deleted'); navigate('equipment');
 }
+/** Bike purchase date → every item counts from then (odometer 0 or the km ridden before it); last wax date → wax counts from there. */
+function datesDialog(bikes, odoFor) {
+  const bike = bikes[0] || 'Bike';
+  const bought = input({ type: 'date', max: todayIso(), value: state.equipment.reduce((m, c) => (!m || (c.installedDate && c.installedDate < m)) ? c.installedDate : m, '') || todayIso() });
+  const waxed = input({ type: 'date', max: todayIso(), value: state.equipment.find(c => c.type === 'wax')?.installedDate || todayIso() });
+  const body = h('div', { class: 'stack' },
+    h('div', { class: 'grid-2' }, field('Got the bike on', bought, 'Every part and check counts from this date'), field('Last chain wax', waxed)),
+    h('p', { class: 'small muted' }, 'The odometer for each date is worked out from the rides you imported before it. Items you already checked off keep their newer date.'));
+  modal('When was it last done?', body, { actions: [{ label: 'Apply', primary: true, onClick: async () => {
+    for (const c of state.equipment) {
+      const done = (c.history || []).length > 0;
+      if (c.type === 'wax') { if (!done || waxed.value > c.installedDate) await db.put('equipment', { ...c, installedDate: waxed.value, installedOdoKm: Math.round(odoFor.at(c.bike || bike, waxed.value)) }); }
+      else if (!done) await db.put('equipment', { ...c, installedDate: bought.value, installedOdoKm: Math.round(odoFor.at(c.bike || bike, bought.value)) });
+    }
+    await refreshData(); toast('Dates applied'); navigate('equipment');
+  } }] });
+}
 function presetDialog(bikes, odoFor) {
   const bike = bikes[0] || 'Bike';
   const di2 = select([{ value: 'di2', label: 'Electronic (Di2)' }, { value: 'mech', label: 'Mechanical cables' }], 'di2');
   const tires = select([{ value: 'tubes', label: 'Inner tubes' }, { value: 'tubeless', label: 'Tubeless' }], 'tubes');
   const waxKm = input({ type: 'number', min: 0, step: 1, value: 0 });
+  const bought = input({ type: 'date', max: todayIso(), value: todayIso() });
   const body = h('div', { class: 'stack' },
-    h('div', { class: 'grid-2' }, field('Shifting', di2), field('Tires', tires), field('Km since your last chain wax', waxKm, 'Roughly is fine; 0 if you just waxed it')),
-    h('p', { class: 'small muted' }, 'Everything else starts from today. Edit any item later if you know when it was last done.'));
+    h('div', { class: 'grid-2' }, field('Shifting', di2), field('Tires', tires), field('Km since your last chain wax', waxKm, 'Roughly is fine; 0 if you just waxed it'), field('Got the bike on', bought, 'Everything else counts from this date')),
+    h('p', { class: 'small muted' }, 'You can change any date later with Set dates, or by tapping an item.'));
   modal('Set up Winspace C5 Aero', body, { actions: [{ label: 'Add maintenance list', primary: true, onClick: async () => {
     const odo = Math.round(odoFor(bike)); const today = todayIso();
     const keys = presetC5Aero({ di2: di2.value === 'di2', tubeless: tires.value === 'tubeless' });
     let i = 0;
-    for (const k of keys) await db.put('equipment', { id: `c-${Date.now()}-${i++}`, type: k, bike, name: '', installedDate: today, installedOdoKm: k === 'wax' ? odo - (+waxKm.value || 0) : odo, limitKm: null, limitDays: null, history: [] });
+    for (const k of keys) await db.put('equipment', { id: `c-${Date.now()}-${i++}`, type: k, bike, name: '', installedDate: k === 'wax' ? today : bought.value, installedOdoKm: k === 'wax' ? odo - (+waxKm.value || 0) : Math.round(odoFor.at ? odoFor.at(bike, bought.value) : odo), limitKm: null, limitDays: null, history: [] });
     await refreshData(); toast(`${keys.length} items added`); navigate('equipment');
   } }] });
 }
@@ -159,8 +178,9 @@ function compDialog(c, bikes, odoFor) {
   const t0 = typeOf(c?.type || 'wax');
   const limKm = input({ type: 'number', value: c?.limitKm || '', placeholder: t0.km ? `default ${t0.km}` : 'none' });
   const limDays = input({ type: 'number', value: c?.limitDays || '', placeholder: t0.days ? `default ${t0.days}` : 'none' });
+  date.addEventListener('change', () => { if (odoFor.at && date.value) odo.value = Math.round(odoFor.at(bikeSel.value, date.value)); });
   typeSel.addEventListener('change', () => { const t = typeOf(typeSel.value); limKm.placeholder = t.km ? `default ${t.km}` : 'none'; limDays.placeholder = t.days ? `default ${t.days}` : 'none'; });
-  const body = h('div', { class: 'grid-2' }, field('Item', typeSel), field('Bike', bikeSel), field('Name / model', name), field('Last done / installed on', date), field('Odometer then (km)', odo, 'Current odometer is pre-filled'), field('Every (km)', limKm), field('Every (days)', limDays));
+  const body = h('div', { class: 'grid-2' }, field('Item', typeSel), field('Bike', bikeSel), field('Name / model', name), field('Last done / installed on', date), field('Odometer then (km)', odo, 'Fills in from your rides when you change the date'), field('Every (km)', limKm), field('Every (days)', limDays));
   const actions = [{ label: 'Save', primary: true, onClick: async () => { await db.put('equipment', { ...(c || {}), id: c?.id || `c-${Date.now()}`, type: typeSel.value, bike: bikeSel.value, name: name.value, installedDate: date.value, installedOdoKm: Number.isFinite(parseFloat(odo.value)) ? +odo.value : 0, limitKm: +limKm.value || null, limitDays: +limDays.value || null, history: c?.history || [] }); await refreshData(); navigate('equipment'); } }];
   if (c) actions.unshift({ label: 'Delete item', danger: true, onClick: async () => { if (!(await confirmDialog(`Delete ${c.name || typeOf(c.type).label}?`, 'Removes the item and its service log.'))) return false; await db.delete('equipment', c.id); await refreshData(); navigate('equipment'); } });
   modal(c ? `Edit ${c.name || typeOf(c.type).label}` : 'Add maintenance item', body, { actions });
