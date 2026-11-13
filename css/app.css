@@ -353,3 +353,14 @@ details summary { cursor: pointer; font-weight: 500; }
 
 .grid-2 > *, .panel, .panel-body { min-width: 0; }
 .upcoming { max-width: 100%; }
+
+/* ---------- maintenance ---------- */
+.mt-group h3 { font: 600 15px var(--font); color: var(--muted); margin: 14px 0 4px; }
+.mt-list { display: flex; flex-direction: column; }
+.mt-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.mt-main { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; align-items: baseline; font: inherit; }
+.mt-name { font-weight: 600; } .mt-name small { color: var(--muted); font-weight: 400; }
+.mt-due { font-size: 14px; white-space: nowrap; display: inline-flex; gap: 4px; align-items: center; } .mt-item.due .mt-due { color: var(--bad); font-weight: 600; } .mt-item.soon .mt-due { color: var(--warn); font-weight: 600; }
+.mt-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; } .mt-bar i { display: block; height: 100%; background: var(--good); border-radius: 3px; }
+.mt-item.soon .mt-bar i { background: var(--warn); } .mt-item.due .mt-bar i { background: var(--bad); }
+.mt-meta { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }

@@ -11,7 +11,7 @@ import { pmcChart } from '../ui/charts.js';
 import { getSettings, units, fmtDuration, fmtNum, todayIso, addDays, daysBetween, rideLocalDate, fmtDate, currentFtp, DAY_NAMES } from '../settings.js';
 import { aggregate, ridesInRange, multiDayBlocks, loadMetrics } from '../metrics/aggregate.js';
 import { buildFocus } from '../coach/focus.js';
-import { rideCall, weatherIcon, componentStatus } from '../modules/extras.js';
+import { rideCall, weatherIcon, componentStatus, typeOf, dueText } from '../modules/extras.js';
 
 function tsbWord(tsb) {
   if (tsb > 25) return { word: 'very fresh: time to train', cls: 'warn' }; if (tsb > 5) return { word: 'fresh: good day to go hard', cls: 'good' }; if (tsb > -10) return { word: 'neutral', cls: '' }; if (tsb > -30) return { word: 'training hard: recover well', cls: 'good' }; return { word: 'tired: ease off', cls: 'bad' };
@@ -130,7 +130,7 @@ registerView('home', (root) => {
   if (!s.profile.ftpHistory?.length && s.onboarded) alerts.push({ cls: 'warn', text: 'Set your FTP, max HR and weight in Settings so zones and TSS are right.', go: 'settings' });
   for (const r of rides.slice(0, 5)) if (r.ftpSuspectLow) { alerts.push({ cls: 'warn', text: `${fmtDate(rideLocalDate(r))}: NP above FTP for ${fmtDuration(r.timerSec, { short: true })} — your FTP is probably set too low.`, go: `ride/${r.id}` }); break; }
   const odo = rides.reduce((a, r) => a + r.distanceM, 0) / 1000;
-  for (const c of state.equipment) { const st = componentStatus(c, odo); if (st.state !== 'ok') alerts.push({ cls: st.state === 'due' ? 'bad' : 'warn', text: `${c.name || c.type}: ${st.state === 'due' ? 'due for replacement/service' : 'coming up soon'}${st.usedKm != null ? ` (${st.usedKm.toFixed(0)} km)` : ''}.`, go: 'equipment' }); }
+  for (const c of state.equipment) { const st = componentStatus(c, odo); const t = typeOf(c.type); if (st.state !== 'ok') alerts.push({ cls: st.state === 'due' ? 'bad' : 'warn', text: `${c.name || t.label}: ${dueText(st).replace(/^Due/, 'due').replace(/^due now/, 'due now')}${t.key === 'wax' && st.state === 'due' ? '. Re-wax before your next ride.' : '.'}`, go: 'equipment' }); }
   if (rides.length && !s.sync?.token) alerts.push({ cls: 'warn', text: 'Connect your private GitHub backup (ridehq-data) so your rides are safe and Claude can read them and save its analyses.', go: 'settings/backup' });
   if (!state.wellness.find(w => w.date === today)) alerts.push({ cls: '', text: 'Log today’s wellness (sleep, resting HR, HRV) for a readiness score.', go: 'wellness' });
   const alertPanel = alerts.length ? h('div', { class: 'alerts' }, alerts.map(a => h('button', { class: `alert ${a.cls}`, onClick: () => navigate(a.go) }, icon(a.cls === 'bad' ? 'warn' : a.cls === 'warn' ? 'warn' : 'info'), h('span', null, a.text)))) : null;

@@ -191,7 +191,7 @@ const NAV = [
 const SIDE = [
   { name: 'home', label: 'Home', icon: 'home' }, { name: 'rides', label: 'Rides', icon: 'rides' }, { name: 'analyze', label: 'Analyze', icon: 'analyze' },
   { name: 'train', label: 'Train', icon: 'train' }, { name: 'gym', label: 'Gym', icon: 'gym' }, { name: 'wellness', label: 'Wellness', icon: 'heart' },
-  { name: 'coach', label: 'Coach', icon: 'spark' }, { name: 'equipment', label: 'Equipment', icon: 'wrench' }, { name: 'nutrition', label: 'Fueling', icon: 'food' },
+  { name: 'coach', label: 'Coach', icon: 'spark' }, { name: 'equipment', label: 'Maintenance', icon: 'wrench' }, { name: 'nutrition', label: 'Fueling', icon: 'food' },
   { name: 'glossary', label: 'Glossary', icon: 'info' }, { name: 'settings', label: 'Settings', icon: 'settings' }, { name: 'howto', label: 'How to', icon: 'help' },
 ];
 function buildLayout() {

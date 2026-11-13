@@ -63,27 +63,65 @@ export function eventFueling(ev, weightKg, ftp) {
 }
 
 // ---------- equipment ----------
+// kind: 'service' = do it again every interval (tap Done); 'replace' = swap the part (tap Replaced).
+// km/days: whichever comes first. group: how the Equipment page groups them.
 export const COMPONENT_TYPES = [
-  { key: 'chain', label: 'Chain', km: 3500, note: 'Replace at 0.5% stretch (11/12-speed). Lube every 300–500 km and after rain.' },
-  { key: 'cassette', label: 'Cassette', km: 10000, note: 'Usually every 2–3 chains; replace if a new chain skips.' },
-  { key: 'tire_rear', label: 'Rear tire', km: 4000, note: 'Wear indicator / squared-off profile / cuts.' },
-  { key: 'tire_front', label: 'Front tire', km: 6500, note: 'Lasts longer than the rear; swap when the rear is new.' },
-  { key: 'pads', label: 'Brake pads', km: 2500, note: 'Disc: < 0.5 mm friction material. Rim: wear line.' },
-  { key: 'bartape', label: 'Bar tape', km: 6000, note: 'Replace when slippery or torn — grip matters on long days.' },
-  { key: 'cables', label: 'Cables / housing', km: 5000, note: 'Sluggish shifting = replace. Yearly for mechanical groupsets.' },
-  { key: 'sealant', label: 'Tubeless sealant', days: 120, note: 'Top up every 2–6 months; sooner in heat.' },
-  { key: 'bb', label: 'Bottom bracket / bearings', km: 8000, note: 'Service for play or noise; yearly check.' },
-  { key: 'chainring', label: 'Chainrings', km: 20000, note: 'Every 3–5 chains or when teeth hook.' },
-  { key: 'bleed', label: 'Hydraulic brake bleed', days: 365, note: 'Yearly, or when the lever feels spongy.' },
-  { key: 'fit', label: 'Bike fit check', days: 365, note: 'After big fitness or flexibility changes, or any new pain.' },
+  // drivetrain
+  { key: 'wax', kind: 'service', group: 'Drivetrain', label: 'Chain wax', km: 400, note: 'Re-wax (hot or immersion wax) every ~400 km, and after any wet ride. Drip-wax top-ups stretch it a little.' },
+  { key: 'chain', kind: 'replace', group: 'Drivetrain', label: 'Chain', km: 6000, note: 'Waxed chains last far longer than oiled ones. Replace at 0.5% stretch on a chain checker (12-speed); check every 1,000 km.' },
+  { key: 'cassette', kind: 'replace', group: 'Drivetrain', label: 'Cassette', km: 15000, note: 'Every 2–3 chains on a waxed drivetrain; replace sooner if a new chain skips.' },
+  { key: 'chainring', kind: 'replace', group: 'Drivetrain', label: 'Chainrings', km: 25000, note: 'Every 3–5 chains, or when teeth look hooked.' },
+  // tires & wheels
+  { key: 'tire_rear', kind: 'replace', group: 'Tires & wheels', label: 'Rear tire', km: 4000, note: 'Carries most of your weight and the drive, so it wears about twice as fast as the front. Replace at the wear indicator, a flat-topped profile, or any cut.' },
+  { key: 'tire_front', kind: 'replace', group: 'Tires & wheels', label: 'Front tire', km: 6000, note: 'Lasts longer than the rear. Never put a worn tire on the front: front grip is what keeps you upright.' },
+  { key: 'sealant', kind: 'service', group: 'Tires & wheels', label: 'Tubeless sealant', days: 90, note: 'Top up every 2–4 months; sooner in summer heat. Skip if you run inner tubes.' },
+  { key: 'wheels', kind: 'service', group: 'Tires & wheels', label: 'Wheel true & spokes', days: 365, km: 8000, note: 'Spin each wheel: no wobble or rub at the brake pads. Yearly shop check of spoke tension and hub bearings.' },
+  // brakes
+  { key: 'pads', kind: 'replace', group: 'Brakes', label: 'Disc brake pads', km: 2500, note: 'Shimano: replace at 0.5 mm of pad material (or 2.5 mm pad + plate). Check every 1,000 km; much sooner after wet, gritty rides.' },
+  { key: 'rotors', kind: 'replace', group: 'Brakes', label: 'Disc rotors', km: 15000, note: 'Replace when thinner than 1.5 mm (measure with calipers) or warped.' },
+  { key: 'bleed', kind: 'service', group: 'Brakes', label: 'Hydraulic brake bleed', days: 365, note: 'Yearly with Shimano mineral oil, or sooner if a lever feels spongy or pulls to the bar.' },
+  // shifting
+  { key: 'di2', kind: 'service', group: 'Shifting', label: 'Di2 battery charge', km: 1000, days: 45, note: 'Charge before a long ride or the tour. When low, the front derailleur stops first, then the rear.' },
+  { key: 'coincell', kind: 'service', group: 'Shifting', label: 'Di2 shifter coin cells (CR1632)', days: 540, note: 'Each shifter has one; replace every 1.5–2 years or when the E-Tube app says low.' },
+  { key: 'cables', kind: 'replace', group: 'Shifting', label: 'Shift cables & housing', km: 5000, days: 365, note: 'Mechanical groupsets only. Sluggish shifting means replace.' },
+  // frame & cockpit
+  { key: 'torque', kind: 'service', group: 'Frame & cockpit', label: 'Bolt torque check', days: 30, note: 'Torque wrench on stem/bar, seat clamp, thru-axles and rotor bolts. On a carbon frame and integrated bar, use the printed limits (often 5 Nm) and carbon paste. Never guess on carbon.' },
+  { key: 'headset', kind: 'service', group: 'Frame & cockpit', label: 'Headset check / service', km: 5000, days: 180, note: 'Hold the front brake and rock the bike: any knock means play. With an integrated cockpit and internal routing, a full service is a shop job.' },
+  { key: 'bb', kind: 'service', group: 'Frame & cockpit', label: 'Bottom bracket (T47)', km: 8000, days: 365, note: 'Threaded T47 is easy to service. Check for play and creaks; clean and regrease yearly.' },
+  { key: 'seatpost', kind: 'service', group: 'Frame & cockpit', label: 'Seatpost clean & carbon paste', days: 180, note: 'Pull the aero post, wipe, fresh carbon assembly paste, reinstall at the marked height and torque. Stops creaks and seizing.' },
+  { key: 'bartape', kind: 'replace', group: 'Frame & cockpit', label: 'Bar tape', km: 6000, days: 365, note: 'Replace when slippery or torn; grip matters on long days.' },
+  { key: 'frame', kind: 'service', group: 'Frame & cockpit', label: 'Carbon frame inspection', days: 90, note: 'Clean the bike and look for cracks or chips, especially at the fork, dropouts and after any crash or drop.' },
+  // pedals & you
+  { key: 'cleats', kind: 'replace', group: 'Pedals & fit', label: 'Cleats', km: 5000, note: 'Replace when the grip pads wear through or clipping in feels loose. Mark the position before swapping.' },
+  { key: 'pmbattery', kind: 'service', group: 'Pedals & fit', label: 'Power pedal charge (P715)', days: 21, note: 'Charge per the Magene app. And zero-offset the pedals before every ride: an un-zeroed pedal is what spoiled the first Nov 3 test.' },
+  { key: 'fit', kind: 'service', group: 'Pedals & fit', label: 'Bike fit check', days: 365, note: 'After big fitness or flexibility changes, or any new pain.' },
 ];
+export const typeOf = key => COMPONENT_TYPES.find(t => t.key === key) || { key, kind: 'replace', group: 'Other', label: key };
+
 export function componentStatus(c, bikeOdometerKm, today = todayIso()) {
-  const type = COMPONENT_TYPES.find(t => t.key === c.type) || {};
+  const type = typeOf(c.type);
   const limitKm = c.limitKm || type.km, limitDays = c.limitDays || type.days;
   let usedKm = null, usedDays = null, pct = 0;
   if (limitKm && Number.isFinite(c.installedOdoKm)) { usedKm = Math.max(0, bikeOdometerKm - c.installedOdoKm); pct = Math.max(pct, usedKm / limitKm); }
-  if (limitDays && c.installedDate) { usedDays = Math.round((new Date(today) - new Date(c.installedDate)) / 86400000); pct = Math.max(pct, usedDays / limitDays); }
-  return { usedKm, usedDays, limitKm, limitDays, pct, state: pct >= 1 ? 'due' : pct >= 0.8 ? 'soon' : 'ok' };
+  if (limitDays && c.installedDate) { usedDays = Math.max(0, Math.round((new Date(today) - new Date(c.installedDate)) / 86400000)); pct = Math.max(pct, usedDays / limitDays); }
+  const kmLeft = limitKm && usedKm != null ? limitKm - usedKm : null, daysLeft = limitDays && usedDays != null ? limitDays - usedDays : null;
+  const soonAt = type.kind === 'service' && limitKm && limitKm <= 600 ? 0.75 : 0.8; // short intervals warn a ride earlier
+  return { usedKm, usedDays, limitKm, limitDays, kmLeft, daysLeft, pct, kind: type.kind, state: pct >= 1 ? 'due' : pct >= soonAt ? 'soon' : 'ok' };
+}
+/** Plain words: "Due now", "Due in 85 km", "Due in 12 days". */
+export function dueText(st) {
+  if (st.state === 'due') { const over = st.kmLeft != null && st.kmLeft < 0 ? `${Math.round(-st.kmLeft)} km over` : st.daysLeft != null && st.daysLeft < 0 ? `${-st.daysLeft} days over` : ''; return over ? `Due now (${over})` : 'Due now'; }
+  const parts = [];
+  if (st.kmLeft != null) parts.push(`${Math.round(st.kmLeft).toLocaleString()} km`);
+  if (st.daysLeft != null) parts.push(`${st.daysLeft} days`);
+  return parts.length ? `Due in ${parts.join(' or ')}` : '';
+}
+/** Winspace C5 Aero preset: frame-specific items plus the drivetrain/tire/brake set. */
+export function presetC5Aero({ di2 = true, tubeless = false } = {}) {
+  const keys = ['wax', 'chain', 'cassette', 'chainring', 'tire_rear', 'tire_front', 'wheels', 'pads', 'rotors', 'bleed', 'torque', 'headset', 'bb', 'seatpost', 'bartape', 'frame', 'cleats', 'pmbattery', 'fit'];
+  if (tubeless) keys.splice(6, 0, 'sealant');
+  if (di2) keys.splice(keys.indexOf('torque'), 0, 'di2', 'coincell'); else keys.splice(keys.indexOf('torque'), 0, 'cables');
+  return keys;
 }
 
 // ---------- backup / restore ----------

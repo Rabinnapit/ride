@@ -8,13 +8,13 @@ import { buildFocus } from '../coach/focus.js';
 import { askCoach, weeklyReviewPrompt, freeChatPrompt, riderContext, aiConfigured, validateAdjustments, chatMessageForReview, syncReady } from '../ai/ai.js';
 import { pullCoachNotes } from '../sync/github.js';
 import { GLOSSARY } from '../ui/glossary.js';
-import { COMPONENT_TYPES, componentStatus, fuelingPlan, eventFueling } from '../modules/extras.js';
+import { COMPONENT_TYPES, componentStatus, typeOf, dueText, presetC5Aero, fuelingPlan, eventFueling } from '../modules/extras.js';
 
 import { fuelLibraryPanel } from './fuel-ui.js';
 registerView('more', (root) => {
   const items = [
     ['gym', 'Gym', 'Log sets, estimated 1RM, periodization', 'gym'], ['wellness', 'Wellness', 'Sleep, resting HR, HRV, readiness', 'heart'],
-    ['coach', 'Coach', 'Claude analysis, notebook, weekly review', 'spark'], ['equipment', 'Equipment', 'Chain, tires, pads by kilometer', 'wrench'],
+    ['coach', 'Coach', 'Claude analysis, notebook, weekly review', 'spark'], ['equipment', 'Maintenance', 'Chain wax, tires, brakes, bike checks', 'wrench'],
     ['nutrition', 'Fueling', 'Carbs per hour, event plan', 'food'], ['glossary', 'What the numbers mean', 'Plain-English explanation of every term', 'info'], ['settings', 'Settings', 'Profile, FTP, zones, units, sync, backup', 'settings'], ['howto', 'How to', 'Install, share from OnelapFit, Zwift, backup', 'help'],
   ];
   root.append(h('div', { class: 'page-head' }, h('h1', null, 'More')), h('div', { class: 'menu' }, items.map(([r, t, d, i]) => h('a', { class: 'menu-item', href: `#/${r}` }, icon(i), h('span', null, h('b', null, t), h('small', null, d))))));
@@ -82,25 +82,74 @@ registerView('equipment', (root) => {
   const rides = state.rides.filter(r => !r.excluded);
   const bikes = [...new Set(rides.map(r => r.bikeName || 'Bike'))];
   const odoFor = b => rides.filter(r => (r.bikeName || 'Bike') === b).reduce((a, r) => a + r.distanceM, 0) / 1000;
-  const head = h('div', { class: 'page-head' }, h('h1', null, 'Equipment'), button('Add component', () => compDialog(null, bikes, odoFor), { primary: true, small: true, iconName: 'plus' }));
-  const odoPanel = section('Odometer', h('div', { class: 'tiles compact' }, bikes.map(b => tile(units.distStr(odoFor(b) * 1000, 0), b, `${rides.filter(r => (r.bikeName || 'Bike') === b).length} rides`))), { sub: 'Distance from imported rides, per bike profile on the Magene' });
-  const comps = state.equipment.slice().sort((a, b) => componentStatus(b, odoFor(b.bike || bikes[0] || 'Bike')).pct - componentStatus(a, odoFor(a.bike || bikes[0] || 'Bike')).pct);
-  const list = comps.length ? h('div', { class: 'stack' }, comps.map(c => { const st = componentStatus(c, odoFor(c.bike || bikes[0] || 'Bike')); const t = COMPONENT_TYPES.find(x => x.key === c.type); return h('button', { class: `session comp ${st.state}`, onClick: () => compDialog(c, bikes, odoFor) }, h('span', { class: 'session-text' }, h('b', null, c.name || t?.label || c.type, ' ', st.state === 'due' ? pill('due', 'bad') : st.state === 'soon' ? pill('soon', 'warn') : null), h('small', null, `${c.bike || ''} · installed ${c.installedDate || '–'}${st.usedKm != null ? ` · ${st.usedKm.toFixed(0)} / ${st.limitKm} km` : ''}${st.usedDays != null ? ` · ${st.usedDays} / ${st.limitDays} days` : ''}`), progress(st.pct * 100, { color: st.state === 'due' ? '#D33A2F' : st.state === 'soon' ? '#E8731A' : '#2E9E4F' }))); })) : empty('Add your chain, tires and pads with the odometer reading when they were installed. Alerts appear on Home when service is due.');
-  const guide = section('Service intervals', table(['Component', 'Typical', 'Rule'], COMPONENT_TYPES.map(t => [t.label, t.km ? `${t.km.toLocaleString()} km` : `${t.days} days`, h('span', { class: 'small' }, t.note)])), { sub: 'Defaults you can override per component. Wax lube and clean drivetrains stretch these; wet winter rides shorten them.' });
-  root.append(head, odoPanel, section('Components', list), guide);
+  const bikeOf = c => c.bike || bikes[0] || 'Bike';
+  const head = h('div', { class: 'page-head' }, h('h1', null, 'Maintenance'), h('div', { class: 'page-actions' }, button('Add item', () => compDialog(null, bikes, odoFor), { small: true, iconName: 'plus' })));
+  const odoPanel = section('Odometer', h('div', { class: 'tiles compact' }, (bikes.length ? bikes : ['Bike']).map(b => tile(units.distStr(odoFor(b) * 1000, 0), b, `${rides.filter(r => (r.bikeName || 'Bike') === b).length} rides`))), { sub: 'Distance from your imported rides. Service counters run off this, so import every ride (indoor trainer rides count for the drivetrain too).' });
+
+  if (!state.equipment.length) {
+    const setup = section('Set up your Winspace C5 Aero', h('div', { class: 'stack' },
+      h('p', null, 'Adds the maintenance list for your bike: chain wax every 400 km, tires, brakes, the T47 bottom bracket, headset, integrated cockpit bolts, seatpost, cleats and power pedals. Each starts counting from today; edit any item you serviced at a different time.'),
+      h('div', { class: 'row' }, button('Set up C5 Aero', () => presetDialog(bikes, odoFor), { primary: true }), button('Add items one by one', () => compDialog(null, bikes, odoFor))),
+    ));
+    root.append(head, odoPanel, setup, guidePanel());
+    return;
+  }
+  const rows = state.equipment.map(c => ({ c, t: typeOf(c.type), st: componentStatus(c, odoFor(bikeOf(c))) }));
+  const attention = rows.filter(r => r.st.state !== 'ok').sort((a, b) => b.st.pct - a.st.pct);
+  const item = ({ c, t, st }) => h('div', { class: `mt-item ${st.state}` },
+    h('button', { class: 'mt-main', onClick: () => compDialog(c, bikes, odoFor) },
+      h('span', { class: 'mt-name' }, c.name || t.label, c.name && c.name !== t.label ? h('small', null, ` ${t.label}`) : null),
+      h('span', { class: 'mt-due' }, st.state === 'due' ? icon('warn') : null, dueText(st)),
+      h('span', { class: 'mt-bar', role: 'progressbar', 'aria-valuenow': Math.round(Math.min(1, st.pct) * 100), 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('i', { style: { width: `${Math.min(100, st.pct * 100)}%` } })),
+      h('small', { class: 'mt-meta' }, `${t.kind === 'service' ? 'Last done' : 'Installed'} ${fmtDate(c.installedDate)}${st.usedKm != null ? ` · ${Math.round(st.usedKm).toLocaleString()} of ${st.limitKm.toLocaleString()} km` : ''}${st.usedDays != null && st.limitDays ? ` · ${st.usedDays} of ${st.limitDays} days` : ''}`)),
+    button(t.kind === 'service' ? 'Done' : 'Replaced', () => markDone(c, odoFor(bikeOf(c)), t), { small: true, primary: st.state === 'due', iconName: 'check' }));
+  const attPanel = attention.length ? section('Needs attention', h('div', { class: 'mt-list' }, attention.map(item)), { sub: 'Due now or coming up within the next ride or two.' }) : section('Needs attention', h('p', { class: 'muted' }, 'Nothing due. Keep zero-offsetting the pedals before each ride.'));
+  const groups = [...new Set(COMPONENT_TYPES.map(t => t.group)), 'Other'];
+  const byGroup = groups.map(g => [g, rows.filter(r => (r.t.group || 'Other') === g).sort((a, b) => b.st.pct - a.st.pct)]).filter(([, rs]) => rs.length);
+  const allPanel = section('Everything', h('div', null, byGroup.map(([g, rs]) => h('div', { class: 'mt-group' }, h('h3', null, g), h('div', { class: 'mt-list' }, rs.map(item))))), { sub: 'Tap an item to change its interval or last-done date. Done resets the counter to today and the current odometer.' });
+  const log = (state.equipment.flatMap(c => (c.history || []).map(x => ({ ...x, name: c.name || typeOf(c.type).label }))).sort((a, b) => b.date.localeCompare(a.date))).slice(0, 12);
+  const logPanel = log.length ? section('Service log', table(['Date', 'Item', 'Odometer'], log.map(x => [fmtDate(x.date), `${x.name}${x.action === 'replaced' ? ' (replaced)' : ''}`, `${Math.round(x.odoKm).toLocaleString()} km`]))) : null;
+  root.append(head, odoPanel, attPanel, allPanel, logPanel, guidePanel());
 });
+function guidePanel() {
+  return section('Service intervals', h('details', { class: 'demo-fold' }, h('summary', null, 'How often, and how to tell'), table(['Item', 'Every', 'How to tell'], COMPONENT_TYPES.map(t => [t.label, [t.km ? `${t.km.toLocaleString()} km` : null, t.days ? `${t.days} days` : null].filter(Boolean).join(' or '), h('span', { class: 'small' }, t.note)]))), { sub: 'Defaults you can change per item. Wet or gritty rides shorten everything; a clean waxed drivetrain stretches chain and cassette life.' });
+}
+async function markDone(c, odoKm, t) {
+  const today = todayIso();
+  const history = [...(c.history || []), { date: today, odoKm, action: t.kind === 'service' ? 'done' : 'replaced', prevDate: c.installedDate, prevOdoKm: c.installedOdoKm }];
+  await db.put('equipment', { ...c, installedDate: today, installedOdoKm: Math.round(odoKm), history });
+  await refreshData(); toast(`${c.name || t.label}: ${t.kind === 'service' ? 'done' : 'replaced'}. Counter reset.`); navigate('equipment');
+}
+function presetDialog(bikes, odoFor) {
+  const bike = bikes[0] || 'Bike';
+  const di2 = select([{ value: 'di2', label: 'Electronic (Di2)' }, { value: 'mech', label: 'Mechanical cables' }], 'di2');
+  const tires = select([{ value: 'tubes', label: 'Inner tubes' }, { value: 'tubeless', label: 'Tubeless' }], 'tubes');
+  const waxKm = input({ type: 'number', min: 0, step: 1, value: 0 });
+  const body = h('div', { class: 'stack' },
+    h('div', { class: 'grid-2' }, field('Shifting', di2), field('Tires', tires), field('Km since your last chain wax', waxKm, 'Roughly is fine; 0 if you just waxed it')),
+    h('p', { class: 'small muted' }, 'Everything else starts from today. Edit any item later if you know when it was last done.'));
+  modal('Set up Winspace C5 Aero', body, { actions: [{ label: 'Add maintenance list', primary: true, onClick: async () => {
+    const odo = Math.round(odoFor(bike)); const today = todayIso();
+    const keys = presetC5Aero({ di2: di2.value === 'di2', tubeless: tires.value === 'tubeless' });
+    let i = 0;
+    for (const k of keys) await db.put('equipment', { id: `c-${Date.now()}-${i++}`, type: k, bike, name: '', installedDate: today, installedOdoKm: k === 'wax' ? odo - (+waxKm.value || 0) : odo, limitKm: null, limitDays: null, history: [] });
+    await refreshData(); toast(`${keys.length} items added`); navigate('equipment');
+  } }] });
+}
 function compDialog(c, bikes, odoFor) {
-  const typeSel = select(COMPONENT_TYPES.map(t => ({ value: t.key, label: t.label })), c?.type || 'chain');
+  const typeSel = select(COMPONENT_TYPES.map(t => ({ value: t.key, label: `${t.group}: ${t.label}` })), c?.type || 'wax');
   const bikeSel = select((bikes.length ? bikes : ['Bike']).map(b => ({ value: b, label: b })), c?.bike || bikes[0] || 'Bike');
-  const name = input({ type: 'text', value: c?.name || '', placeholder: 'e.g. KMC X12' });
+  const name = input({ type: 'text', value: c?.name || '', placeholder: 'optional, e.g. KMC X12, GP5000 28 mm' });
   const date = input({ type: 'date', value: c?.installedDate || todayIso() });
   const odo = input({ type: 'number', step: '1', value: c?.installedOdoKm ?? Math.round(odoFor(bikeSel.value)), placeholder: 'km' });
-  const limKm = input({ type: 'number', value: c?.limitKm || '', placeholder: 'default' });
-  const limDays = input({ type: 'number', value: c?.limitDays || '', placeholder: 'default' });
-  const body = h('div', { class: 'grid-2' }, field('Type', typeSel), field('Bike', bikeSel), field('Name / model', name), field('Installed on', date), field('Odometer at install (km)', odo, 'Current odometer is pre-filled'), field('Replace after (km)', limKm), field('Replace after (days)', limDays));
-  const actions = [{ label: 'Save', primary: true, onClick: async () => { await db.put('equipment', { id: c?.id || `c-${Date.now()}`, type: typeSel.value, bike: bikeSel.value, name: name.value, installedDate: date.value, installedOdoKm: +odo.value || 0, limitKm: +limKm.value || null, limitDays: +limDays.value || null }); await refreshData(); navigate('equipment'); } }];
+  const t0 = typeOf(c?.type || 'wax');
+  const limKm = input({ type: 'number', value: c?.limitKm || '', placeholder: t0.km ? `default ${t0.km}` : 'none' });
+  const limDays = input({ type: 'number', value: c?.limitDays || '', placeholder: t0.days ? `default ${t0.days}` : 'none' });
+  typeSel.addEventListener('change', () => { const t = typeOf(typeSel.value); limKm.placeholder = t.km ? `default ${t.km}` : 'none'; limDays.placeholder = t.days ? `default ${t.days}` : 'none'; });
+  const body = h('div', { class: 'grid-2' }, field('Item', typeSel), field('Bike', bikeSel), field('Name / model', name), field('Last done / installed on', date), field('Odometer then (km)', odo, 'Current odometer is pre-filled'), field('Every (km)', limKm), field('Every (days)', limDays));
+  const actions = [{ label: 'Save', primary: true, onClick: async () => { await db.put('equipment', { ...(c || {}), id: c?.id || `c-${Date.now()}`, type: typeSel.value, bike: bikeSel.value, name: name.value, installedDate: date.value, installedOdoKm: Number.isFinite(parseFloat(odo.value)) ? +odo.value : 0, limitKm: +limKm.value || null, limitDays: +limDays.value || null, history: c?.history || [] }); await refreshData(); navigate('equipment'); } }];
   if (c) actions.unshift({ label: 'Delete', danger: true, onClick: async () => { await db.delete('equipment', c.id); await refreshData(); navigate('equipment'); } });
-  modal(c ? 'Edit component' : 'Add component', body, { actions });
+  modal(c ? `Edit ${c.name || typeOf(c.type).label}` : 'Add maintenance item', body, { actions });
 }
 
 // ---------- nutrition ----------
