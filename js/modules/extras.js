@@ -108,6 +108,15 @@ export function componentStatus(c, bikeOdometerKm, today = todayIso()) {
   const soonAt = type.kind === 'service' && limitKm && limitKm <= 600 ? 0.75 : 0.8; // short intervals warn a ride earlier
   return { usedKm, usedDays, limitKm, limitDays, kmLeft, daysLeft, pct, kind: type.kind, state: pct >= 1 ? 'due' : pct >= soonAt ? 'soon' : 'ok' };
 }
+/** Odometer for a bike at the start of a date, from imported rides. */
+export function odoAt(rides, bike, date, rideDate) { return rides.filter(r => !r.excluded && (r.bikeName || 'Bike') === bike && rideDate(r) < date).reduce((a, r) => a + r.distanceM, 0) / 1000; }
+/** When will it be due? Days from now, using how much you've ridden lately for km-based items. */
+export function projectDays(st, kmPerDay) {
+  if (st.state === 'due') return 0;
+  const byDays = st.daysLeft != null ? st.daysLeft : Infinity;
+  const byKm = st.kmLeft != null && kmPerDay > 0 ? st.kmLeft / kmPerDay : Infinity;
+  return Math.min(byDays, byKm);
+}
 /** Plain words: "Due now", "Due in 85 km", "Due in 12 days". */
 export function dueText(st) {
   if (st.state === 'due') { const over = st.kmLeft != null && st.kmLeft < 0 ? `${Math.round(-st.kmLeft)} km over` : st.daysLeft != null && st.daysLeft < 0 ? `${-st.daysLeft} days over` : ''; return over ? `Due now (${over})` : 'Due now'; }

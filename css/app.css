@@ -365,3 +365,5 @@ details summary { cursor: pointer; font-weight: 500; }
 .mt-item.soon .mt-bar i { background: var(--warn); } .mt-item.due .mt-bar i { background: var(--bad); }
 .mt-meta { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
 .log-actions { gap: 6px; flex-wrap: nowrap; justify-content: flex-end; }
+.mt-item.care { width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; color: var(--ink); font: inherit; }
+.mt-item.care .mt-main { pointer-events: none; }

@@ -11,7 +11,7 @@ import { pmcChart } from '../ui/charts.js';
 import { getSettings, units, fmtDuration, fmtNum, todayIso, addDays, daysBetween, rideLocalDate, fmtDate, currentFtp, DAY_NAMES } from '../settings.js';
 import { aggregate, ridesInRange, multiDayBlocks, loadMetrics } from '../metrics/aggregate.js';
 import { buildFocus } from '../coach/focus.js';
-import { rideCall, weatherIcon, componentStatus, typeOf, dueText } from '../modules/extras.js';
+import { rideCall, weatherIcon, componentStatus, typeOf, dueText, projectDays } from '../modules/extras.js';
 
 function tsbWord(tsb) {
   if (tsb > 25) return { word: 'very fresh: time to train', cls: 'warn' }; if (tsb > 5) return { word: 'fresh: good day to go hard', cls: 'good' }; if (tsb > -10) return { word: 'neutral', cls: '' }; if (tsb > -30) return { word: 'training hard: recover well', cls: 'good' }; return { word: 'tired: ease off', cls: 'bad' };
@@ -130,10 +130,23 @@ registerView('home', (root) => {
   if (!s.profile.ftpHistory?.length && s.onboarded) alerts.push({ cls: 'warn', text: 'Set your FTP, max HR and weight in Settings so zones and TSS are right.', go: 'settings' });
   for (const r of rides.slice(0, 5)) if (r.ftpSuspectLow) { alerts.push({ cls: 'warn', text: `${fmtDate(rideLocalDate(r))}: NP above FTP for ${fmtDuration(r.timerSec, { short: true })} — your FTP is probably set too low.`, go: `ride/${r.id}` }); break; }
   const odo = rides.reduce((a, r) => a + r.distanceM, 0) / 1000;
-  for (const c of state.equipment) { const st = componentStatus(c, odo); const t = typeOf(c.type); if (st.state !== 'ok') alerts.push({ cls: st.state === 'due' ? 'bad' : 'warn', text: `${c.name || t.label}: ${dueText(st).replace(/^Due/, 'due').replace(/^due now/, 'due now')}${t.key === 'wax' && st.state === 'due' ? '. Re-wax before your next ride.' : '.'}`, go: 'equipment' }); }
   if (rides.length && !s.sync?.token) alerts.push({ cls: 'warn', text: 'Connect your private GitHub backup (ridehq-data) so your rides are safe and Claude can read them and save its analyses.', go: 'settings/backup' });
   if (!state.wellness.find(w => w.date === today)) alerts.push({ cls: '', text: 'Log today’s wellness (sleep, resting HR, HRV) for a readiness score.', go: 'wellness' });
   const alertPanel = alerts.length ? h('div', { class: 'alerts' }, alerts.map(a => h('button', { class: `alert ${a.cls}`, onClick: () => navigate(a.go) }, icon(a.cls === 'bad' ? 'warn' : a.cls === 'warn' ? 'warn' : 'info'), h('span', null, a.text)))) : null;
+
+  // ---- bike care: due now or within ~4 weeks at your recent riding rate ----
+  const km28 = ridesInRange(rides, addDays(today, -27), today).reduce((a, r) => a + r.distanceM, 0) / 1000;
+  const kmPerDay = km28 / 28;
+  const odoBike = b => rides.filter(r => (r.bikeName || 'Bike') === b).reduce((a, r) => a + r.distanceM, 0) / 1000;
+  const care = state.equipment.map(c => { const st = componentStatus(c, odoBike(c.bike || rides[0]?.bikeName || 'Bike')); return { c, t: typeOf(c.type), st, days: projectDays(st, kmPerDay) }; })
+    .filter(x => x.days <= 28).sort((a, b) => a.days - b.days);
+  const whenText = x => x.st.state === 'due' ? dueText(x.st) : x.days < 1.5 ? 'Due in about a day' : x.days <= 7 ? `Due in ~${Math.round(x.days)} days` : `Due in ~${Math.round(x.days / 7)} week${Math.round(x.days / 7) > 1 ? 's' : ''}`;
+  const carePanel = care.length ? section('Bike care', h('div', { class: 'mt-list' }, care.map(x => h('button', { class: `mt-item care ${x.st.state === 'due' ? 'due' : x.days <= 14 ? 'soon' : 'ok'}`, onClick: () => navigate('equipment') },
+    h('span', { class: 'mt-main' },
+      h('span', { class: 'mt-name' }, x.c.name || x.t.label),
+      h('span', { class: 'mt-due' }, x.st.state === 'due' ? icon('warn') : null, whenText(x)),
+      h('small', { class: 'mt-meta' }, [x.st.kmLeft != null && x.st.state !== 'due' ? `${Math.max(0, Math.round(x.st.kmLeft))} km left` : null, x.st.daysLeft != null && x.st.state !== 'due' ? `${x.st.daysLeft} days left` : null, x.t.key === 'wax' ? 're-wax before it runs out' : null].filter(Boolean).join(' · ')))))),
+  { sub: `Due now or in the next 4 weeks. Km-based items use your recent riding: about ${Math.round(kmPerDay * 7)} km a week.`, actions: button('Maintenance', () => navigate('equipment'), { small: true, iconName: 'wrench' }) }) : null;
 
   // ---- PMC ----
   const pmcPanel = section('Fitness, fatigue and form', h('div', null), { sub: 'Last 90 days and the next 21 planned (dashed)', term: 'ctl' });
@@ -151,7 +164,7 @@ registerView('home', (root) => {
       h('span', null, h('strong', null, 'Install RiderHQ on this phone. '), 'Then it appears in OnelapFit’s share menu, so one tap sends a ride here.'),
       canInstall() ? button('Install app', () => promptInstall(), { primary: true, small: true }) : button('How to install', () => navigate('howto'), { small: true }));
   }
-  root.append(setup, install, todayPanel, alertPanel, coachPanel, h('div', { class: 'grid-2' }, standPanel, weekPanel), h('div', { class: 'grid-2' }, focusPanel, eventPanel), latest, pmcPanel);
+  root.append(setup, install, todayPanel, alertPanel, carePanel, coachPanel, h('div', { class: 'grid-2' }, standPanel, weekPanel), h('div', { class: 'grid-2' }, focusPanel, eventPanel), latest, pmcPanel);
 });
 
 function standCell(value, label, term, sub, cls = '') {

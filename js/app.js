@@ -126,6 +126,28 @@ export async function recomputeRide(ride, extra = {}) {
   await db.put('rides', updated);
   return updated;
 }
+// One-time data fixes, each runs once per device.
+const MIGRATIONS = [
+  { id: 'maint-dates-2026-11-13', until: '2026-11-30', run: async () => {
+    if (!state.equipment.length) return false; // not set up yet; the setup dialog asks for the purchase date
+    const { odoAt } = await import('./modules/extras.js');
+    for (const c of state.equipment) {
+      const bike = c.bike || 'Bike';
+      const date = c.type === 'wax' ? '2026-11-09' : '2026-10-06';
+      await db.put('equipment', { ...c, installedDate: date, installedOdoKm: Math.round(odoAt(state.rides, bike, date, rideLocalDate)), history: [] });
+    }
+    return true;
+  } },
+];
+async function runMigrations() {
+  const done = (await db.getSetting('migrations', [])) || [];
+  let changed = false;
+  for (const m of MIGRATIONS) {
+    if (done.includes(m.id) || todayIso() > m.until) continue;
+    try { if (await m.run()) { done.push(m.id); changed = true; } } catch (e) { console.warn('migration', m.id, e); }
+  }
+  if (changed) { await db.setSetting('migrations', done); await refreshData(); }
+}
 export async function recomputeAll(onProgress = () => {}) {
   const rides = await db.getAll('rides');
   const overrides = (await db.getSetting('overrides', [])) || []; // e.g. "power meter wasn't zeroed on this ride"
@@ -274,6 +296,7 @@ export async function boot() {
   const mv = await db.getSetting('metricsVersion', 1);
   if (mv < METRICS_VERSION && state.rides.length) { await recomputeAll(); }
   await db.setSetting('metricsVersion', METRICS_VERSION);
+  await runMigrations();
   render();
   window.addEventListener('hashchange', render);
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (getSettings().theme === 'system') { applyTheme(); render(); } });
